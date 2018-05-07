@@ -33,7 +33,7 @@ This can be useful if a machine generated signal (e.g. from a vacuum cleaner) ma
 
 After a timeout of TIMEOUT_RELAY_ON_SIGNAL_MINUTES (2 hours) the relay goes OFF for 1 second. 
 In the next TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES minutes you must then press the button or whistle the pitch to cancel the timeout, otherwise the relay will switch OFF.
-Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off.
+Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off. To enable the timeout, choose the dummy range 10. The setting is stored in EEPROM.
 
 
 **This example is mainly created to run on an ATtiny85 @1MHz, but will work also on a plain Arduino.**
@@ -50,6 +50,8 @@ the following pitch ranges are predefined for easy selection:
 7.   1550 - 1900 Hz  -> 350 Hz
 8.   1250 - 1530 Hz  -> 380 Hz
 9.   1000 - 1230 Hz  -> 230 Hz
+10.  dummy range, if chosen **enable** relay on timeout handling.
+11.  dummy range, if chosen **disable** relay on timeout handling.
 
 ## SELECTING the RANGE
 Selecting is started by a long press of the button.
