@@ -28,8 +28,9 @@
  *  If the match holds for MATCH_TO_LONG_MILLIS (1.0) seconds after switching output, the  output switches again to go back to the former state.
  *  This can be useful if a machine generated signal (e.g. from a vacuum cleaner) matches the range.
  *
- *	RESET
+ *	INFO / RESET
  *  After power up or reset, the feedback LED echoes the range number. Range number 10 indicates an individual range, programmed by advanced programming.
+ *  An active timeout is signaled by an additional short LED blink after the range number feedback.
  *  A reset can be performed by power off/on or by pressing the button two times each time shorter than RESET_ENTER_BUTTON_PUSH_MILLIS (0.12) seconds
  *  within a RESET_WAIT_TIMEOUT_MILLIS (0.3) second interval.
  *
@@ -37,7 +38,7 @@
  *  After TIMEOUT_RELAY_ON_SIGNAL_MINUTES minutes the relay goes OFF for 1 second. In the next TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES minutes
  *  you must then press the button or whistle the pitch to cancel the timeout, otherwise the relay will switch OFF.
  *  Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off.
- *  Timeout can be switches on or off by selecting the dummy ranges 10 or 11.
+ *  Timeout can be switched on or off by selecting the dummy ranges 10 or 11.
  *
  *	PROGRAMMING
  *  Programming is done by a long press of the button.
@@ -634,6 +635,15 @@ void setup() {
 #endif
 
     signalRangeIndexByLed();
+
+    /*
+     * signal timeout with short pulse
+     */
+    if (WhistleSwitchControl.RelayOnTimeoutIsEnabled) {
+        digitalWriteFast(LED_FEEDBACK, HIGH);
+        delay(TIMING_FREQUENCY_LOWER_MILLIS / 4);
+        digitalWriteFast(LED_FEEDBACK, LOW);
+    }
 
     //initPinChangeInterrupt
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)

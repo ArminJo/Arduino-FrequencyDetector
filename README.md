@@ -31,9 +31,10 @@ If the pitch is lower than the specified frequency, the feedback LED blinks slow
 If the match holds for *MATCH_TO_LONG_MILLIS* (1000) milliseconds after switching output, the output switches again, to go back to the former state.
 This can be useful if a machine generated signal (e.g. from a vacuum cleaner) matches the range.
 
+### TIMEOUT
 After a timeout of TIMEOUT_RELAY_ON_SIGNAL_MINUTES (2 hours) the relay goes OFF for 1 second. 
 In the next TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES minutes you must then press the button or whistle the pitch to cancel the timeout, otherwise the relay will switch OFF.
-Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off. To enable the timeout, choose the dummy range 10. The setting is stored in EEPROM.
+Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off. To enable the timeout, choose the dummy range 10, to disable, use range 11. The setting is stored in EEPROM.
 
 
 **This example is mainly created to run on an ATtiny85 @1MHz, but will work also on a plain Arduino.**
@@ -77,6 +78,7 @@ and the effective duration is echoed by the feedback LED.
 
 ## INFO / RESET
 After power up or reset, the feedback LED echoes the range number. Range number 10 indicates an individual range, programmed by advanced selecting.
+An active timeout is signaled by an additional short LED blink after the range number feedback.
 A reset can be performed by power off/on or by pressing the button two times each time shorter than RESET_ENTER_BUTTON_PUSH_MILLIS / 0.12 seconds
 within a RESET_WAIT_TIMEOUT_MILLIS / 0.3 second interval.
 
