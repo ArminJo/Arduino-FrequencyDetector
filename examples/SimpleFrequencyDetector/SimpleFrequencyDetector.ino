@@ -26,22 +26,22 @@
  */
 
 /*
- *      + 5V                o--O PIN REF
- *      |                   |
- *      |                   _
- *      |                  | |
- * e.g. MAX9814 MICROPHONE | | 1M
- *  AMPLIFIER / MODULE     |_|
- *      |     ____          |
- *     |O ---|____|---||----o--O PIN A1
- *      |     10k           |
- *      |                   _
- *      |                  | |
- *      |                  | | 1M
- *     ___                 |_|
- *                          |
- *                          |
- *                         ___
+ *      + 5V / 3.3V           o--O PIN REF
+ *      |                     |
+ *      |                     _
+ *      |                    | |
+ * MAX4466 / 9814 MICROPHONE | | 1M
+ *  AMPLIFIER / MODULE       |_|
+ *      |                     |
+ *     |O ---------||---------o--O PIN A1
+ *      |         10nF        |
+ *      |                     _
+ *      |                    | |
+ *      |                    | | 1M
+ *     ___                   |_|
+ *                            |
+ *                            |
+ *                           ___
  *
  */
 
@@ -57,7 +57,7 @@ void setup() {
 // initialize the digital pin as an output.
     pinMode(LED_PIN, OUTPUT);
     Serial.begin(115200);
-    Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from  " __DATE__));
+    Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
 
     /*
      * initialize FrequencyDetector

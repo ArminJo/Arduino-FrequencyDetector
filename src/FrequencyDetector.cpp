@@ -59,11 +59,8 @@
 
 FrequencyDetectorControlStruct FrequencyDetectorControl;
 
-const char ErrorString_0[] PROGMEM = "No trigger";
-const char ErrorString_1[] PROGMEM = "Signal low";
-const char ErrorString_2[] PROGMEM = "No signal zero crossing at start or end of sample";
-const char ErrorString_3[] PROGMEM = "Periods between signal zero crossing during the sample are too different";
 const char *ErrorStrings[] = { ErrorString_0, ErrorString_1, ErrorString_2, ErrorString_3 };
+const char *ErrorStringsShort[] = { ErrorString_0, ErrorString_1, ErrorStringShort_2, ErrorStringShort_3 };
 
 // Union to speed up the combination of low and high bytes to a word
 // it is not optimal since the compiler still generates 2 unnecessary moves
@@ -154,15 +151,7 @@ void setFrequencyDetectorReadingDefaults() {
 }
 
 /*
- * storage for millis value
- */
-#if ( defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) ) && defined(ATTINY_CORE)
-#define timer0_millis millis_timer_millis // I use the ATTinyCore library which uses other variable name
-#endif
-extern volatile unsigned long timer0_millis;
-
-/*
- * ADC read routine reads 1024 (512) samples and computes:
+ * ADC read routine reads NUMBER_OF_SAMPLES (1024/512) samples and computes:
  * - FrequencyDetectorControl.FrequencyActual - Frequency of signal
  * or error value SIGNAL_STRENGTH_LOW if signal is too weak
  *
@@ -214,15 +203,15 @@ uint16_t readSignal() {
      */
     for (uint16_t i = 0; i < NUMBER_OF_SAMPLES; i++) {
         // loop takes 22 cycles and we have 52 cycles between each conversion :-)
-        // wait for free running conversion to finish
-        while (bit_is_clear(ADCSRA, ADIF)) {
-            ;
-        }
+        /*
+         * wait for free running conversion to finish.
+         * Do not wait for ADSC here, since ADSC is only low for 1 ADC Clock cycle on free running conversion.
+         */
+        loop_until_bit_is_set(ADCSRA, ADIF);
         // Get value
         tUValue.byte.LowByte = ADCL;
         tUValue.byte.HighByte = ADCH;
-        // without "| (1 << ADSC)" it does not work - undocumented feature???
-        ADCSRA |= (1 << ADIF) | (1 << ADSC); // clear bit to recognize next conversion has finished
+        ADCSRA |= (1 << ADIF); // clear bit to recognize next conversion has finished
 
         /*
          * Detect trigger
@@ -275,13 +264,19 @@ uint16_t readSignal() {
     FrequencyDetectorControl.TriggerLevel = tTriggerValue;
 
     /*
-     * Compensate for disabled timer + one for the 625 micros for 512 samples.
+     * enable timer 0 overflow interrupt and compensate for disabled timer, if still disabled. + one for the 625 micros for 512 samples.
      */
-    timer0_millis += (26 * (NUMBER_OF_SAMPLES / 512)) + 1;
-    // enable timer 0 overflow interrupt
 #if defined(TIMSK) && defined(TOIE0)
+    if ((TIMSK & _BV(TOIE0)) == 0) {
+        // still disabled -> compensate
+        timer0_millis += (26 * (NUMBER_OF_SAMPLES / 512)) + 1;
+    }
     sbi(TIMSK, TOIE0);
 #elif defined(TIMSK0) && defined(TOIE0)
+    if ((TIMSK0 & _BV(TOIE0)) == 0) {
+        // still disabled -> compensate
+        timer0_millis += (26 * (NUMBER_OF_SAMPLES / 512)) + 1;
+    }
     sbi(TIMSK0, TOIE0);
 #else
 #error  Timer 0 overflow interrupt not set correctly
@@ -390,13 +385,10 @@ uint16_t doPlausi() {
 }
 
 /**
- * simple low-pass filter
- * history of 15 values
+ * simple low-pass filter over 15 values
  */
-uint16_t filterWith16Values(uint16_t aFilteredValue, uint16_t aValue) {
-    uint16_t tValue = (aFilteredValue << 4) - aFilteredValue; // aFilteredValue * 15
-    tValue += aValue;
-    return ((tValue + (1 << 3)) >> 4); // (tValue+8)/16 (+8 to avoid rounding errors)
+uint16_t LowPassFilterWith16Values(uint16_t aFilteredValue, uint16_t aValue) {
+    return (((aFilteredValue * 15) + aValue + (1 << 3)) >> 4); // (tValue+8)/16 (+8 to avoid rounding errors)
 }
 
 /**
@@ -457,8 +449,10 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
             FrequencyDetectorControl.MatchLowPassFiltered = tNewFilterValue;
             FrequencyDetectorControl.FrequencyFiltered = aFrequency;
         } else if (FrequencyDetectorControl.MatchDropoutCount < FrequencyDetectorControl.MaxMatchDropoutCount) {
-            FrequencyDetectorControl.FrequencyFiltered = filterWith16Values(FrequencyDetectorControl.FrequencyFiltered, aFrequency);
-            FrequencyDetectorControl.MatchLowPassFiltered = filterWith16Values(FrequencyDetectorControl.MatchLowPassFiltered, tNewFilterValue);
+            FrequencyDetectorControl.FrequencyFiltered = LowPassFilterWith16Values(FrequencyDetectorControl.FrequencyFiltered,
+                    aFrequency);
+            FrequencyDetectorControl.MatchLowPassFiltered = LowPassFilterWith16Values(FrequencyDetectorControl.MatchLowPassFiltered,
+                    tNewFilterValue);
         }
 
         /*

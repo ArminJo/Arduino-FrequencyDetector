@@ -25,41 +25,42 @@
  *  It uses FrequencyDetector to recognize a whistle pitch which in turn operates a mains relay.
  *  By using different pitches it is possible to control multiple relays in a single room.
  *  If the pitch is lower than the specified frequency the feedback LED blinks slowly, if the pitch is higher it blinks fast.
- *  If the match holds for MATCH_TO_LONG_MILLIS (1.0) seconds after switching output, the  output switches again to go back to the former state.
+ *  If the match holds for MATCH_TO_LONG_MILLIS (1.0 second) after switching output, the  output switches again to go back to the former state.
  *  This can be useful if a machine generated signal (e.g. from a vacuum cleaner) matches the range.
  *
  *	INFO / RESET
  *  After power up or reset, the feedback LED echoes the range number. Range number 10 indicates an individual range, programmed by advanced programming.
- *  An active timeout is signaled by an additional short LED blink after the range number feedback.
- *  A reset can be performed by power off/on or by pressing the button two times each time shorter than RESET_ENTER_BUTTON_PUSH_MILLIS (0.12) seconds
- *  within a RESET_WAIT_TIMEOUT_MILLIS (0.3) second interval.
+ *  The timeout state is signaled by short LED pulses after the range number feedback (no short pulse -> no timeout enabled).
+ *  A reset can be performed by power off/on or by pressing the button two times each time shorter than RESET_ENTER_BUTTON_PUSH_MILLIS (0.12 seconds)
+ *  within a RESET_WAIT_TIMEOUT_MILLIS (0.3 seconds) interval.
  *
  *  TIMEOUT
- *  After TIMEOUT_RELAY_ON_SIGNAL_MINUTES minutes the relay goes OFF for 1 second. In the next TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES minutes
- *  you must then press the button or whistle the pitch to cancel the timeout, otherwise the relay will switch OFF.
+ *  After a timeout of TIMEOUT_RELAY_ON_SIGNAL_MINUTES_(1 or 2) (2 or 8 hours) the relay goes OFF for 1 second.
+ *  In the next TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES minutes you must then press the button or whistle the pitch to cancel the timeout, otherwise the relay will switch OFF.
  *  Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off.
- *  Timeout can be switched on or off by selecting the dummy ranges 10 or 11.
+ *  Timeout can be switched on by selecting the dummy ranges 10 or 11 and off by selecting the dummy ranges > 11.
+ *  Default is TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2 (8 hours).
  *
  *	PROGRAMMING
  *  Programming is done by a long press of the button.
- *  After BUTTON_PUSH_ENTER_PROGRAM_SIMPLE_MILLIS (1.5) seconds, the feedback LED blinks once for signaling simple programming mode.
- *  After BUTTON_PUSH_ENTER_PROGRAM_ADVANCED_MILLIS (4) seconds, the feedback LED blinks twice for signaling advanced programming mode.
+ *  After BUTTON_PUSH_ENTER_PROGRAM_SIMPLE_MILLIS (1.5 seconds), the feedback LED blinks once for signaling simple programming mode.
+ *  After BUTTON_PUSH_ENTER_PROGRAM_ADVANCED_MILLIS (4 seconds), the feedback LED blinks twice for signaling advanced programming mode.
  *  After releasing the button the corresponding programming mode is entered.
  *
  *  SIMPLE PROGRAMMING
  *  Press the button once for range 1, twice for range 2 etc. Each button press is echoed by the feedback LED.
- *  Waiting for PROGRAM_MODE_SIMPLE_END_DETECT_MILLIS (1.5) seconds ends the programming mode
+ *  Waiting for PROGRAM_MODE_SIMPLE_END_DETECT_MILLIS (1.5 seconds) ends the programming mode
  *  and the feedback LED echoes the number of button presses recognized.
- *  The needed duration of signal match to toggle the relay is fixed at MATCH_MILLIS_NEEDED_DEFAULT (1.2) seconds.
+ *  The needed duration of signal match to toggle the relay is fixed at MATCH_MILLIS_NEEDED_DEFAULT (1.2 seconds).
  *
  *	ADVANCED PROGRAMMING
  *  Whistle the pitch you want to detect, then press the button again.
  *  While you press the button the pitch range is measured. i.e. the minimum and maximum of the pitch you are whistling is stored.
  *
- *  If you press the button again before the PROGRAM_MODE_ADVANCED_END_DETECT_MILLIS (3) seconds timeout
+ *  If you press the button again before the PROGRAM_MODE_ADVANCED_END_DETECT_MILLIS (3 seconds) timeout
  *  the duration of this second press is taken as the needed duration for the signal match to toggle the relay.
- *  Otherwise the  MATCH_MILLIS_NEEDED_DEFAULT (1.2) seconds are taken.
- *  After timeout of PROGRAM_MODE_TIMEOUT_MILLIS (5) seconds the advanced programming mode is ended
+ *  Otherwise the  MATCH_MILLIS_NEEDED_DEFAULT (1.2 seconds) are taken.
+ *  After timeout of PROGRAM_MODE_TIMEOUT_MILLIS (5 seconds) the advanced programming mode is ended
  *  and the effective duration is echoed by the feedback LED.
  *
  *  Since the internal oscillator is not very stable, use gaps of 20/10 Hz in order to avoid overlapping of ranges of 2 different devices
@@ -74,8 +75,10 @@
  *  7   1550 - 1900 Hz  -> 350 Hz
  *  8   1250 - 1530 Hz  -> 280 Hz
  *  9   1000 - 1230 Hz  -> 230 Hz
- *  10  dummy range, if chosen enable relay on timeout handling.
- *  11  dummy range, if chosen disable relay on timeout handling.
+ *
+ *  10  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_MINUTES_1 (2 hours).
+ *  11  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2 (8 hours).
+ *  12  dummy range, if chosen disable relay on timeout handling.
  *
  *  BUTTON
  *  Button state change is handled by an InterruptServiceRoutine
@@ -92,11 +95,13 @@
  * Version 6.0 Extracted as example and adapted to FrequencyDedector library
  * Version 6.1 3/2018 inserted gaps between ranges, added match Debug LED for 328, improved EEPROM addressing,
  *              output version number, changed MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT from 80 to 160 ms.
- * Version 7.0 5/2018 introduced timeout for on-time duration. To enable the timeout, choose the dummy range 10. The setting is stored in EEPROM.
+ * Version 7.0 5/2018 introduced timeout for on-time duration. The setting is stored in EEPROM.
+ * Version 7.1 5/2018 multiple timeouts possible.
+ *              To enable the timeout, choose the dummy range 10 or 11 , to disable, use range 12 or greater.
  *
  */
 
-#define VERSION_EXAMPLE "7.0"
+#define VERSION_EXAMPLE "7.1"
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__)
 #error "Code size of this example is too large to fit in an ATtiny 25 or 45."
@@ -161,6 +166,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 //                  +----+
 
 /*
+ * Discrete microphone amplifier with LM308.
  *      + 5V                             _____
  *      |                             o-|_____|--o
  *      _                             |   1M     |
@@ -204,7 +210,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 // can only compare with low, because active from digitalReadFast() is one bit set in a byte!
 #define BUTTON_PIN_ACTIVE (digitalReadFast(BUTTON_PIN) != LOW)
 
-#define ADC_CHANNEL 7 // Differential inpit (ADC2 - ADC3) * 20
+#define ADC_CHANNEL 7 // Differential input (ADC2 - ADC3) * 20
 #define ADC_REFERENCE INTERNAL
 
 #else
@@ -230,6 +236,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 /*
  * NANO
  */
+// Pin D2
 #define TIMING_PIN 2
 #define TIMING_PORT PORTD
 
@@ -246,7 +253,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define BUTTON_PIN_ACTIVE (digitalReadFast(BUTTON_PIN) == LOW)
 
 #define ADC_CHANNEL ADC_CHANNEL_DEFAULT
-#define ADC_REFERENCE DEFAULT
+#define ADC_REFERENCE INTERNAL // 1.1V
 #endif
 
 // plausibility for frequency in advanced programming mode
@@ -258,11 +265,20 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define MATCH_MILLIS_NEEDED_DEFAULT 1200    // number of valid period matches before relay toggle => 1200 ms
 #define MATCH_TO_LONG_MILLIS        1000    // max milliseconds for match condition true, otherwise switch back to relay state before
 #define RELAY_DEAD_MILLIS           1000    // min milliseconds between 2 changes of relay state -> to avoid to fast relay switching
-#define BUTTON_DEBOUNCE_MILLIS      40      // must be smaller than 65 since delay micros has its limitations!
-// Relay ON timeout
+#define BUTTON_DEBOUNCE_MILLIS      40      // must be smaller than 65 since delay micros has its limitations at 64k!
+
+// Timeout for relay ON
 #define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_MAX (1193 * 60) // -> 49.7 days
-#define TIMEOUT_RELAY_ON_SIGNAL_MINUTES     120 // after this time, the relay is switched OFF and ON to signal timeout
+// after this time, the relay is switched OFF and ON to signal timeout
+#define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_1     120       // 2 Hours timeout for state 1
+#define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2     (4*120)   // 8 Hours timeout for state 2
+uint16_t sRelayOnTimeoutMinutesValuesArray[] = { TIMEOUT_RELAY_ON_SIGNAL_MINUTES_1, TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2 };
+
 #define TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES 3   // after signaling wait this time for feedback otherwise switch the relay OFF
+#define TIMEOUT_RELAY_ON_STATE_DISABLED 0
+#define TIMEOUT_RELAY_ON_STATE_ENABLED_SHORT 1
+#define TIMEOUT_RELAY_ON_STATE_ENABLED_LONG 2
+#define TIMEOUT_RELAY_ON_STATE_MAX  TIMEOUT_RELAY_ON_STATE_ENABLED_LONG
 
 // LED blink timing
 #define TIMING_FREQUENCY_LOWER_MILLIS     150
@@ -304,27 +320,21 @@ enum MainStateEnum {
     PROGRAM_WAIT_FOR_FEEDBACK_END
 };
 
-struct LedControlStruct {
-    uint16_t LedBlinkMillis;
-    int8_t LedBlinkCount; // >0 => blink n times, 0 => stop blinking, -1 => blink forever
-    uint32_t MillisAtLastLEDChange;
-} LedControl;
-
 struct WhistleSwitchControlStruct {
 
     uint16_t FrequencyLast; // for advanced programming mode
 
     // status for main loop
     MainStateEnum MainState;
-    MainStateEnum FeedbackState; // To manage feedback for long press
+    MainStateEnum ButtonPressTempState; // Temporary state while button pressed, to handle feedback for long button press
 
     uint32_t MillisAtLastRelayChange;
     //
     bool MatchJustDetected; // do only one toggle per match
     //
     bool TimeoutSignaled;  // see TIMEOUT_RELAY_ON_SIGNAL_MINUTES
-    //
-    bool RelayOnTimeoutIsEnabled;
+    uint8_t RelayOnTimeoutState; // actually only state 0 (=disabled) 1  and 2 are supported
+    uint32_t RelayOnTimeoutMillis; // holds the actual timeout in millis
 
     uint8_t ButtonPressCounter;
 
@@ -334,18 +344,24 @@ struct WhistleSwitchControlStruct {
 
 } WhistleSwitchControl;
 
+struct LedControlStruct {
+    uint16_t LedBlinkMillis;
+    int8_t LedBlinkCount; // >0 => blink n times, 0 => stop blinking, -1 => blink forever
+    uint32_t MillisAtLastLEDChange;
+} LedControl;
+
 struct ButtonControlStruct {
-    volatile uint32_t MillisAtLastInterrupt;
+    volatile uint32_t MillisAtButtonGoingActive;
     volatile bool ButtonActiveDetected;
     volatile bool ButtonReleaseJustDetected;
-    volatile uint16_t MillisOfButtonPress;  // Duration of LOW state
-    uint32_t MillisAtLastButtonRelease; // for reset timeout
+    volatile uint16_t MillisOfButtonPress;  // Duration of active state. Set at button release.
+    uint32_t MillisAtLastButtonRelease;     // for reset timeout
 } ButtonControl;
 
 /*******************************************************************************************
  * Function declaration section
  *******************************************************************************************/
-void handleButtonPressed();
+void detectLongButtonPress();
 
 /*
  * aLedBlinkCount = -1 -> blink forever
@@ -373,8 +389,15 @@ void handleLedBlinkState() {
     }
 }
 
+void setButtonReleasedState(uint32_t aMillis) {
+    ButtonControl.ButtonActiveDetected = false;
+    ButtonControl.MillisOfButtonPress = aMillis - ButtonControl.MillisAtButtonGoingActive;
+    ButtonControl.ButtonReleaseJustDetected = true;
+}
+
 void backToStateDetect() {
     WhistleSwitchControl.MainState = DETECT_FREQUENCY;
+    WhistleSwitchControl.ButtonPressTempState = DETECT_FREQUENCY;
     FrequencyDetectorControl.FrequencyMatchDirect = FREQUENCY_MATCH_INVALID;
     LedControl.LedBlinkCount = 0;
 }
@@ -387,33 +410,41 @@ void setMillisNeededForValidMatch(uint16_t aPeriodValidNeededMillis) {
 #ifdef DEBUG
     // 7500 micros for debug output at 115200Baud at main loop
     WhistleSwitchControl.MatchValidNeeded = tLongValue
-    / (((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES) + (7500 / (F_CPU / 1000000)));
+            / (((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES) + (7500 / (F_CPU / 1000000)));
 #else
     WhistleSwitchControl.MatchValidNeeded = tLongValue
-            / ((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES);
+    / ((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES);
 #endif
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
     Serial.print("MatchValidNeeded=");
     Serial.println(WhistleSwitchControl.MatchValidNeeded);
 #else
-    writeString_P(PSTR("MillisNeededForValidMatch="));
+    writeString(F("MillisNeededForValidMatch="));
     writeUnsignedInt(WhistleSwitchControl.MillisNeededForValidMatch);
     writeValueCli('\n');
 #endif
 }
 
 void eepromReadParameter() {
+    // read parameter structure except timeout
     eeprom_read_block((void*) &sPersistentParameters, &sPersistentParametersEEPROM, sizeof(EepromParameterStruct));
-    setMillisNeededForValidMatch(sPersistentParameters.PeriodValidNeededMillis);
 
+    // set variables
+    setMillisNeededForValidMatch(sPersistentParameters.PeriodValidNeededMillis);
     FrequencyDetectorControl.FrequencyMatchLow = sPersistentParameters.FrequencyMin;
     FrequencyDetectorControl.FrequencyMatchHigh = sPersistentParameters.FrequencyMax;
+
+    // read timeout flag
     uint8_t tTimeoutFlag = eeprom_read_byte((uint8_t*) &sRelayOnTimeoutIsEnabledEEPROM);
     if (tTimeoutFlag == 0xFF) {
-        WhistleSwitchControl.RelayOnTimeoutIsEnabled = false;
+        // Uninitialized -> set to long (8 hours)
+        WhistleSwitchControl.RelayOnTimeoutState = TIMEOUT_RELAY_ON_STATE_ENABLED_LONG;
     } else {
-        WhistleSwitchControl.RelayOnTimeoutIsEnabled = tTimeoutFlag;
+        // EEPROM was initialized -> take value
+        WhistleSwitchControl.RelayOnTimeoutState = tTimeoutFlag;
     }
+    WhistleSwitchControl.RelayOnTimeoutMillis = sRelayOnTimeoutMinutesValuesArray[WhistleSwitchControl.RelayOnTimeoutState - 1]
+            * 60000L;
 }
 
 void eepromWriteParameter() {
@@ -424,19 +455,21 @@ void eepromWriteParameter() {
 }
 
 void eepromWriteTimeoutFlag() {
-    eeprom_write_byte((uint8_t*) &sRelayOnTimeoutIsEnabledEEPROM, WhistleSwitchControl.RelayOnTimeoutIsEnabled);
+    eeprom_write_byte((uint8_t*) &sRelayOnTimeoutIsEnabledEEPROM, WhistleSwitchControl.RelayOnTimeoutState);
+    WhistleSwitchControl.RelayOnTimeoutMillis = sRelayOnTimeoutMinutesValuesArray[WhistleSwitchControl.RelayOnTimeoutState - 1]
+            * 60000L;
 #if defined(__AVR_ATtiny85__)
-    writeString_P(PSTR("Timeout "));
-    if (WhistleSwitchControl.RelayOnTimeoutIsEnabled) {
-        writeString_P(PSTR("enabled"));
+    writeString(F("Timeout "));
+    if (WhistleSwitchControl.RelayOnTimeoutState) {
+        writeByte(WhistleSwitchControl.RelayOnTimeoutState);
     } else {
-        writeString_P(PSTR("disabled"));
+        writeString(F("disabled"));
     }
     writeValueCli('\n');
 #else
     Serial.print("Timeout ");
-    if (WhistleSwitchControl.RelayOnTimeoutIsEnabled) {
-        Serial.println("enabled");
+    if (WhistleSwitchControl.RelayOnTimeoutState > TIMEOUT_RELAY_ON_STATE_DISABLED) {
+        Serial.println(WhistleSwitchControl.RelayOnTimeoutState);
     } else {
         Serial.println("disabled");
     }
@@ -457,9 +490,9 @@ void signalRangeIndexByLed() {
         }
     }
 #if defined(__AVR_ATtiny85__)
-    writeString_P(PSTR("Range index="));
+    writeString(F("Range index="));
     writeUnsignedByte(i + 1);
-    writeString_P(PSTR("\r\n"));
+    writeString(F("\r\n"));
 #else
     Serial.print("Range index=");
     Serial.println(i + 1);
@@ -474,7 +507,7 @@ void signalRangeIndexByLed() {
 }
 
 /*
- * must be called as long as match is present to detect long matches, which will then reset relay to state before
+ * Must be called as long as match is present to detect long matches, which will then reset relay to state before
  * toggles relay only once per match
  * handles timeout feedback
  * enables relay dead time TIMING_RELAY_DEAD_MILLIS
@@ -483,7 +516,7 @@ void toggleRelay() {
     static bool sMatchTooLongDetected;
 
 #if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
-    Serial.print("Toggle Relay. MatchJustDetected=");
+    Serial.print("In toggleRelay(). MatchJustDetected=");
     Serial.println(WhistleSwitchControl.MatchJustDetected);
 #endif
 
@@ -492,18 +525,17 @@ void toggleRelay() {
         Serial.println("Reset timeout");
 #endif
         /*
-         * Here we  take the next match after signaling timeout as cancellation of the timeout.
-         * Signal cancellation by LED.
+         * Reset timeout
+         * Here we take the next match after signaling timeout as cancellation of the timeout.
          */
+        // Signal cancellation by LED.
         for (int i = 0; i < 5; ++i) {
             digitalWriteFast(LED_FEEDBACK, HIGH);
             delay(1000);
             digitalWriteFast(LED_FEEDBACK, LOW);
             delay(1000);
         }
-        /*
-         * Reset timeout
-         */
+        // Reset state
         WhistleSwitchControl.MatchValidCount = 0; // since we do a blocking wait above
         WhistleSwitchControl.TimeoutSignaled = false;
         WhistleSwitchControl.MillisAtLastRelayChange = millis();
@@ -516,6 +548,9 @@ void toggleRelay() {
              */
             sMatchTooLongDetected = false;
             digitalToggleFast(RELAY_OUT);
+#if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
+            Serial.println("Toggle Relay.");
+#endif
             WhistleSwitchControl.MillisAtLastRelayChange = millis();
         } else if (!sMatchTooLongDetected && tMillisSinceLastRelayChange > MATCH_TO_LONG_MILLIS) {
             /*
@@ -530,14 +565,140 @@ void toggleRelay() {
 
     }
     WhistleSwitchControl.MatchJustDetected = true;
-//    Serial.print("set MillisAtLastRelayChange=");
-//    Serial.println(PfeiffschalterControl.MillisAtLastRelayChange);
+}
+
+/*
+ * process FrequencyMatchFiltered
+ * set led blinking and count valid matches until toggling relay
+ */
+void processMatchState() {
+    if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_INVALID) {
+        WhistleSwitchControl.MatchValidCount = 0;
+    } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_HIGHER) {
+        // HIGHER -> set blink frequency according to gap between real and maximum-match pitch
+        int16_t tLedBlinkMillis = TIMING_FREQUENCY_HIGHER_MILLIS
+                - ((FrequencyDetectorControl.FrequencyFiltered - FrequencyDetectorControl.FrequencyMatchHigh) / 16);
+        if (tLedBlinkMillis < TIMING_FREQUENCY_HIGHER_MILLIS_MINIMUM) {
+            tLedBlinkMillis = TIMING_FREQUENCY_HIGHER_MILLIS_MINIMUM;
+        }
+#if defined (DEBUG) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
+        Serial.print("tLedBlinkMillis=");
+        Serial.println(tLedBlinkMillis);
+#endif
+        setFeedbackLedBlinkState(tLedBlinkMillis, -1);
+        WhistleSwitchControl.MatchValidCount--;
+    } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_LOWER) {
+        // LOWER -> set blink frequency according to gap between real and minimal-match pitch
+        uint16_t tLedBlinkMillis = TIMING_FREQUENCY_LOWER_MILLIS
+                + ((FrequencyDetectorControl.FrequencyMatchLow - FrequencyDetectorControl.FrequencyFiltered) / 2);
+#if defined (DEBUG) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
+        Serial.print("tLedBlinkMillis=");
+        Serial.println(tLedBlinkMillis);
+#endif
+        setFeedbackLedBlinkState(tLedBlinkMillis, -1);
+        WhistleSwitchControl.MatchValidCount--;
+    } else {
+        /*
+         * successful match here
+         */
+        LedControl.LedBlinkCount = 0;
+        WhistleSwitchControl.MatchValidCount++;
+        digitalWriteFast(LED_FEEDBACK, HIGH);
+    }
+
+    /*
+     * housekeeping
+     */
+    if (WhistleSwitchControl.MatchValidCount < 0) {
+        WhistleSwitchControl.MatchValidCount = 0;
+    }
+    if (WhistleSwitchControl.MatchValidCount >= WhistleSwitchControl.MatchValidNeeded) {
+        /*
+         * valid match here  - "MatchJustDetected = true" is be set in toggleRelay()
+         */
+        toggleRelay();
+    } else {
+        WhistleSwitchControl.MatchJustDetected = false;
+    }
+}
+
+void printInfos(uint16_t aFrequency) {
+#ifdef DEBUG
+    static uint16_t sFrequencyFilteredPrinted;
+    static uint16_t sFrequencyPrinted;
+    static int16_t sTriggerLevelPrinted;
+    static int16_t sAverageLevelPrinted;
+    static int16_t sSignalDeltaPrinted;
+    static uint8_t sMatchLowPassFilteredPrinted;
+
+    if (sFrequencyFilteredPrinted != FrequencyDetectorControl.FrequencyFiltered || sFrequencyPrinted != aFrequency
+            || sMatchLowPassFilteredPrinted != FrequencyDetectorControl.MatchLowPassFiltered
+            || abs(sTriggerLevelPrinted - (int16_t)FrequencyDetectorControl.TriggerLevel) > 10
+            || abs(sAverageLevelPrinted - (int16_t)FrequencyDetectorControl.AverageLevel) > 10
+            || abs(sSignalDeltaPrinted - (int16_t)FrequencyDetectorControl.SignalDelta) > 15) {
+        sFrequencyFilteredPrinted = FrequencyDetectorControl.FrequencyFiltered;
+        sFrequencyPrinted = aFrequency;
+        sMatchLowPassFilteredPrinted = FrequencyDetectorControl.MatchLowPassFiltered;
+        sTriggerLevelPrinted = FrequencyDetectorControl.AverageLevel;
+        sAverageLevelPrinted = FrequencyDetectorControl.TriggerLevel;
+        sSignalDeltaPrinted = FrequencyDetectorControl.SignalDelta;
+
+#if defined(__AVR_ATtiny85__)
+        writeString(F("FF="));
+        writeUnsignedInt(FrequencyDetectorControl.FrequencyFiltered);
+        writeString(F("Hz F="));
+        writeUnsignedInt(aFrequency);
+        writeString(F("Hz M="));
+        writeUnsignedByte(FrequencyDetectorControl.MatchLowPassFiltered);
+        writeString(F(" TL="));
+        writeUnsignedInt(FrequencyDetectorControl.TriggerLevel);
+        writeString(F(" AL="));
+        writeUnsignedInt(FrequencyDetectorControl.AverageLevel);
+        writeString(F(" D="));
+        writeUnsignedInt(FrequencyDetectorControl.SignalDelta);
+        writeValueCli('\n');
+#else
+        Serial.print("Filtered=");
+        Serial.print(FrequencyDetectorControl.FrequencyFiltered);
+        Serial.print("Hz ");
+        if (aFrequency <= SIGNAL_MAX_ERROR_CODE) {
+            Serial.print(reinterpret_cast<const __FlashStringHelper *>(ErrorStringsShort[aFrequency]));
+        } else {
+            Serial.print("F=");
+            Serial.print(aFrequency);
+            Serial.print("Hz");
+        }
+        Serial.print(" MatchLP=");
+        Serial.print(FrequencyDetectorControl.MatchLowPassFiltered);
+        Serial.print(" TriggerLevel=");
+        Serial.print(FrequencyDetectorControl.TriggerLevel);
+        Serial.print(" AverageLevel=");
+        Serial.print(FrequencyDetectorControl.AverageLevel);
+        Serial.print(" Delta=");
+        Serial.print(FrequencyDetectorControl.SignalDelta);
+        Serial.println();
+#endif
+    }
+#endif
 }
 
 // Example for placing code at init sections see: http://www.nongnu.org/avr-libc/user-manual/mem_sections.html
 void MyInit(void) __attribute__ ((naked)) __attribute__ ((section (".init8")));
 void MyInit(void) {
 }
+
+void signalTimeoutByLed() {
+    /*
+     * signal timeout state with short pulse
+     */
+    for (uint8_t i = 0; i < WhistleSwitchControl.RelayOnTimeoutState; ++i) {
+        digitalWriteFast(LED_FEEDBACK, HIGH);
+        delay(TIMING_FREQUENCY_LOWER_MILLIS / 4);
+        digitalWriteFast(LED_FEEDBACK, LOW);
+        delay(TIMING_FREQUENCY_LOWER_MILLIS / 4);
+    }
+}
+
 /*******************************************************************************************
  * Program code starts here
  * Setup section
@@ -556,16 +717,17 @@ void setup() {
     initTXPin();
     useCliSeiForStrings(true);
     delay(2); // to wait for serial line to settle / stop bit
-    writeString_P(PSTR("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from  " __DATE__ "\r\n"));
+    writeString(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__ "\r\n"));
 #else
     Serial.begin(115200);
-    Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from  " __DATE__));
+    Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
     pinMode(LED_LOWER, OUTPUT);
     pinMode(LED_MATCH, OUTPUT);
     pinMode(LED_HIGHER, OUTPUT);
     pinMode(LED_PLAUSI_FIRST, OUTPUT);
     pinMode(LED_PLAUSI_DISTRIBUTION, OUTPUT);
     pinMode(LED_SIGNAL_STRENGTH, OUTPUT);
+    pinMode(TIMING_PIN, OUTPUT);
 #endif
 
     pinMode(LED_FEEDBACK, OUTPUT);
@@ -577,7 +739,7 @@ void setup() {
     pinMode(BUTTON_PIN, INPUT_PULLUP);  // 100kOhm to VCC
 #endif
 
-    // initial state of Pfeiffschalter
+    // initial state of whistle switch
     backToStateDetect();
     ButtonControl.ButtonReleaseJustDetected = false;
     ButtonControl.ButtonActiveDetected = false;
@@ -603,32 +765,34 @@ void setup() {
         FrequencyDetectorControl.FrequencyMatchLow = predefinedRangesStart[1];
         FrequencyDetectorControl.FrequencyMatchHigh = predefinedRangesEnd[1];
         setMillisNeededForValidMatch(MATCH_MILLIS_NEEDED_DEFAULT);
-#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
+#if defined(__AVR_ATtiny85__)
+        writeString(F("Store default values to EEPROM"));
+#else
         Serial.println("Store default values to EEPROM");
 #endif
         eepromWriteParameter();
     }
 
 #if defined(__AVR_ATtiny85__)
-    writeString_P(PSTR("Frequency min="));
+    writeString(F("Frequency min="));
     writeUnsignedInt(FrequencyDetectorControl.FrequencyMatchLow);
-    writeString_P(PSTR("Hz max="));
+    writeString(F("Hz max="));
     writeUnsignedInt(FrequencyDetectorControl.FrequencyMatchHigh);
-    writeString_P(PSTR("Hz\r\nTimeout "));
-    if (WhistleSwitchControl.RelayOnTimeoutIsEnabled) {
-        writeString_P(PSTR("enabled"));
+    writeString(F("Hz\r\nTimeout "));
+    if (WhistleSwitchControl.RelayOnTimeoutState > TIMEOUT_RELAY_ON_STATE_DISABLED) {
+        writeByte(WhistleSwitchControl.RelayOnTimeoutState);
     } else {
-        writeString_P(PSTR("disabled"));
+        writeString(F("disabled"));
     }
-    writeString_P(PSTR("\r\n"));
+    writeString(F("\r\n"));
 #else
     Serial.print("Frequency min=");
     Serial.print(FrequencyDetectorControl.FrequencyMatchLow);
     Serial.print("Hz max=");
     Serial.print(FrequencyDetectorControl.FrequencyMatchHigh);
     Serial.print("Hz\r\nTimeout ");
-    if (WhistleSwitchControl.RelayOnTimeoutIsEnabled) {
-        Serial.println("enabled");
+    if (WhistleSwitchControl.RelayOnTimeoutState > TIMEOUT_RELAY_ON_STATE_DISABLED) {
+        Serial.println(WhistleSwitchControl.RelayOnTimeoutState);
     } else {
         Serial.println("disabled");
     }
@@ -637,74 +801,18 @@ void setup() {
     signalRangeIndexByLed();
 
     /*
-     * signal timeout with short pulse
+     * signal timeout state with short pulse
      */
-    if (WhistleSwitchControl.RelayOnTimeoutIsEnabled) {
-        digitalWriteFast(LED_FEEDBACK, HIGH);
-        delay(TIMING_FREQUENCY_LOWER_MILLIS / 4);
-        digitalWriteFast(LED_FEEDBACK, LOW);
-    }
+    signalTimeoutByLed();
 
     //initPinChangeInterrupt
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
     PCICR = 1 << PCIE2; //PCINT2 enable
-    PCMSK2 = digitalPinToBitMask(BUTTON_PIN);// =0x20 - Pin 5 enable
+    PCMSK2 = digitalPinToBitMask(BUTTON_PIN); // =0x20 - Pin 5 enable
 #endif
 #if defined(__AVR_ATtiny85__)
     GIMSK |= 1 << PCIE; //PCINT enable
     PCMSK = digitalPinToBitMask(BUTTON_PIN);
-#endif
-}
-
-void printInfos(uint16_t aFrequency) {
-#ifdef DEBUG
-    static uint16_t sFrequencyFilteredPrinted;
-    static uint16_t sFrequencyPrinted;
-    static int16_t sTriggerLevelPrinted;
-    static int16_t sAverageLevelPrinted;
-    static int16_t sSignalDeltaPrinted;
-    static uint8_t sMatchLowPassFilteredPrinted;
-
-    if (sFrequencyFilteredPrinted != FrequencyDetectorControl.FrequencyFiltered || sFrequencyPrinted != aFrequency
-            || sMatchLowPassFilteredPrinted != FrequencyDetectorControl.MatchLowPassFiltered
-            || abs(sTriggerLevelPrinted - (int16_t)FrequencyDetectorControl.TriggerLevel) > 10
-            || abs(sAverageLevelPrinted - (int16_t)FrequencyDetectorControl.AverageLevel) > 10
-            || abs(sSignalDeltaPrinted - (int16_t)FrequencyDetectorControl.SignalDelta) > 10) {
-        sFrequencyFilteredPrinted = FrequencyDetectorControl.FrequencyFiltered;
-        sFrequencyPrinted = aFrequency;
-        sMatchLowPassFilteredPrinted = FrequencyDetectorControl.MatchLowPassFiltered;
-        sTriggerLevelPrinted = FrequencyDetectorControl.AverageLevel;
-        sAverageLevelPrinted = FrequencyDetectorControl.TriggerLevel;
-        sSignalDeltaPrinted = FrequencyDetectorControl.SignalDelta;
-
-#if defined(__AVR_ATtiny85__)
-        writeString_P(PSTR("FF="));
-        writeUnsignedInt(FrequencyDetectorControl.FrequencyFiltered);
-        writeString_P(PSTR("Hz F="));
-        writeUnsignedInt(aFrequency);
-        writeString_P(PSTR("Hz M="));
-        writeUnsignedByte(FrequencyDetectorControl.MatchLowPassFiltered);
-        writeString_P(PSTR(" TL="));
-        writeUnsignedInt(FrequencyDetectorControl.TriggerLevel);
-        writeString_P(PSTR(" AL="));
-        writeUnsignedInt(FrequencyDetectorControl.AverageLevel);
-        writeString_P(PSTR(" D="));
-        writeUnsignedInt(FrequencyDetectorControl.SignalDelta);
-        writeValueCli('\n');
-#else
-        Serial.print("Filtered=");
-        Serial.print(FrequencyDetectorControl.FrequencyFiltered);
-        Serial.print("Hz ");
-        if (aFrequency <= SIGNAL_MAX_ERROR_CODE) {
-            Serial.print(reinterpret_cast<const __FlashStringHelper *>(ErrorStrings[aFrequency]));
-        } else {
-            Serial.print("F=");
-            Serial.print(aFrequency);
-            Serial.print("Hz");
-        }
-        Serial.println();
-#endif
-    }
 #endif
 }
 
@@ -721,7 +829,7 @@ void __attribute__((noreturn)) loop(void) {
         if (WhistleSwitchControl.MainState != sLastPrintedMainState) {
             sLastPrintedMainState = WhistleSwitchControl.MainState;
 #if defined(__AVR_ATtiny85__)
-            writeString_P(PSTR("New MainState="));
+            writeString(F("New MainState="));
             writeUnsignedByte(WhistleSwitchControl.MainState);
             writeValueCli('\n');
 #else
@@ -729,7 +837,7 @@ void __attribute__((noreturn)) loop(void) {
             Serial.println(WhistleSwitchControl.MainState);
 #endif
         }
-#endif
+#endif // INFO
 #if defined (TRACE) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
         Serial.print("State=");
         Serial.print(WhistleSwitchControl.MainState);
@@ -738,10 +846,11 @@ void __attribute__((noreturn)) loop(void) {
         Serial.print(" Button=");
         Serial.print(ButtonControl.MillisOfButtonPress);
         Serial.print(" Last=");
-        Serial.print(ButtonControl.MillisAtLastInterrupt);
+        Serial.print(ButtonControl.MillisAtButtonGoingActive);
         Serial.print(" Low=");
         Serial.println(ButtonControl.ButtonActiveDetected);
-#endif
+#endif // TRACE
+
         handleLedBlinkState();
 
         if (WhistleSwitchControl.MainState == DETECT_FREQUENCY) {
@@ -749,24 +858,51 @@ void __attribute__((noreturn)) loop(void) {
              * Frequency processing only when button is inactive
              */
             if (BUTTON_PIN_ACTIVE) {
-                handleButtonPressed();
+                detectLongButtonPress();
             } else {
-                // if the ISR missed the last low to high transition because of fast bouncing
-                ButtonControl.ButtonActiveDetected = false;
+                // if the ISR missed the last active to inactive transition because of fast bouncing
+                if (ButtonControl.ButtonActiveDetected) {
+                    setButtonReleasedState(millis());
+#if defined(__AVR_ATtiny85__)
+                    writeString(F("Button inactive not detected by ISR\n"));
+#else
+                    Serial.println("Button inactive not detected by ISR");
+#endif
+                }
+
                 /*
-                 * Analyze and match main loop
+                 * Read signal and get frequency
+                 *
                  * readSignal() needs 26,6 ms for one loop at attiny85 1MHz
                  * Remaining of loop needs 260 cycles, but with debug output at 115200Baud it needs 7500 cycles.
                  */
 //                BIT_SET(TIMING_PORT, TIMING_PIN);
                 uint16_t tFrequency = readSignal(); // needs 26.6 millis
 //                BIT_CLEAR(TIMING_PORT, TIMING_PIN);
+
                 /*
                  * plausibility check
                  */
                 tFrequency = doPlausi();
 
+                /*
+                 * compute match
+                 */
+                computeDirectAndFilteredMatch(tFrequency);
+
+                if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_INVALID) {
+                    LedControl.LedBlinkCount = 0;
+                    digitalWriteFast(LED_FEEDBACK, LOW);
+                }
+
+#ifdef DEBUG
+                printInfos(tFrequency);
+#endif
+
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
+                /*
+                 * Show state on the LEDS
+                 */
                 digitalWriteFast(LED_SIGNAL_STRENGTH, LOW);
                 digitalWriteFast(LED_LOWER, LOW);
                 digitalWriteFast(LED_MATCH, LOW);
@@ -782,21 +918,6 @@ void __attribute__((noreturn)) loop(void) {
                 if (tFrequency == SIGNAL_DISTRIBUTION_PLAUSI_FAILED) {
                     digitalWriteFast(LED_PLAUSI_DISTRIBUTION, HIGH);
                 }
-#endif
-
-#ifdef DEBUG
-                printInfos(tFrequency);
-#endif
-
-                /*
-                 * compute match
-                 */
-                computeDirectAndFilteredMatch(tFrequency);
-                if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_INVALID) {
-                    LedControl.LedBlinkCount = 0;
-                    digitalWriteFast(LED_FEEDBACK, LOW);
-                }
-#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
                 if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_LOWER) {
                     digitalWriteFast(LED_LOWER, HIGH);
                 } else if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_HIGHER) {
@@ -810,59 +931,10 @@ void __attribute__((noreturn)) loop(void) {
                  * process match state
                  * set led blinking and count valid matches until toggling relay
                  */
-                if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_INVALID) {
-                    WhistleSwitchControl.MatchValidCount = 0;
-                } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_HIGHER) {
-                    // HIGHER -> set blink frequency according to gap between real and maximum-match pitch
-                    int16_t tLedBlinkMillis = TIMING_FREQUENCY_HIGHER_MILLIS
-                            - ((FrequencyDetectorControl.FrequencyFiltered - FrequencyDetectorControl.FrequencyMatchHigh) / 16);
-                    if (tLedBlinkMillis < TIMING_FREQUENCY_HIGHER_MILLIS_MINIMUM) {
-                        tLedBlinkMillis = TIMING_FREQUENCY_HIGHER_MILLIS_MINIMUM;
-                    }
-
-#if defined (DEBUG) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
-                    Serial.print("tLedBlinkMillis=");
-                    Serial.println(tLedBlinkMillis);
-#endif
-                    setFeedbackLedBlinkState(tLedBlinkMillis, -1);
-                    WhistleSwitchControl.MatchValidCount--;
-                } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_LOWER) {
-                    // LOWER -> set blink frequency according to gap between real and minimal-match pitch
-                    uint16_t tLedBlinkMillis = TIMING_FREQUENCY_LOWER_MILLIS
-                            + ((FrequencyDetectorControl.FrequencyMatchLow - FrequencyDetectorControl.FrequencyFiltered) / 2);
-#if defined (DEBUG) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
-
-                    Serial.print("tLedBlinkMillis=");
-                    Serial.println(tLedBlinkMillis);
-#endif
-                    setFeedbackLedBlinkState(tLedBlinkMillis, -1);
-                    WhistleSwitchControl.MatchValidCount--;
-                } else {
-                    /*
-                     * successful match here
-                     */
-                    LedControl.LedBlinkCount = 0;
-                    WhistleSwitchControl.MatchValidCount++;
-                    digitalWriteFast(LED_FEEDBACK, HIGH);
-                }
+                processMatchState();
 
                 /*
-                 * housekeeping
-                 */
-                if (WhistleSwitchControl.MatchValidCount < 0) {
-                    WhistleSwitchControl.MatchValidCount = 0;
-                }
-                if (WhistleSwitchControl.MatchValidCount >= WhistleSwitchControl.MatchValidNeeded) {
-                    /*
-                     * valid match here  - "MatchJustDetected = true" is be set in toggleRelay()
-                     */
-                    toggleRelay();
-                } else {
-                    WhistleSwitchControl.MatchJustDetected = false;
-                }
-
-                /*
-                 * Button handling
+                 * Button release handling
                  */
                 if (ButtonControl.ButtonReleaseJustDetected) {
                     ButtonControl.ButtonReleaseJustDetected = false;
@@ -873,15 +945,15 @@ void __attribute__((noreturn)) loop(void) {
                         // wait for next push for reset
                         WhistleSwitchControl.MainState = WAIT_FOR_SECOND_PUSH_FOR_RESET;
                         ButtonControl.MillisAtLastButtonRelease = millis();
-                    } else if (WhistleSwitchControl.FeedbackState == DETECT_FREQUENCY) {
+                    } else if (WhistleSwitchControl.ButtonPressTempState == DETECT_FREQUENCY) {
                         /*
                          * and action ...
                          */
                         toggleRelay();
                     } else {
-                        // set programming state
-                        WhistleSwitchControl.MainState = WhistleSwitchControl.FeedbackState;
-                        WhistleSwitchControl.FeedbackState = DETECT_FREQUENCY;
+                        // set programming state from button temp state
+                        WhistleSwitchControl.MainState = WhistleSwitchControl.ButtonPressTempState;
+                        WhistleSwitchControl.ButtonPressTempState = DETECT_FREQUENCY;
                         WhistleSwitchControl.ButtonPressCounter = 0;
                     }
 
@@ -892,25 +964,25 @@ void __attribute__((noreturn)) loop(void) {
                     Serial.print(" State=");
                     Serial.println(WhistleSwitchControl.MainState);
 #else
-                    writeString_P(PSTR("BMillis="));
+                    writeString(F("BMillis="));
                     writeUnsignedInt(ButtonControl.MillisOfButtonPress);
-                    writeString_P(PSTR(" State="));
+                    writeString(F(" State="));
                     writeUnsignedByte(WhistleSwitchControl.MainState);
                     write1Start8Data1StopNoParity('\n');
 #endif
 #endif
-                }
+                } // End button handling
 
-                if (WhistleSwitchControl.RelayOnTimeoutIsEnabled) {
+                if (WhistleSwitchControl.RelayOnTimeoutState > TIMEOUT_RELAY_ON_STATE_DISABLED) {
                     /*
-                     * Check for Relay to be ON for more than TIMEOUT_RELAY_ON_SIGNAL_MINUTES minutes
+                     * TIMEOUT - Check for Relay to be ON for more than TIMEOUT_RELAY_ON_SIGNAL_MINUTES minutes
                      */
                     bool tRelayState = digitalReadFast(RELAY_OUT);
                     if (tRelayState) {
                         uint32_t tMillisSinceLastRelayChange = millis() - WhistleSwitchControl.MillisAtLastRelayChange;
-                        if (tMillisSinceLastRelayChange > TIMEOUT_RELAY_ON_SIGNAL_MINUTES * 60000L) {
+                        if (tMillisSinceLastRelayChange > WhistleSwitchControl.RelayOnTimeoutMillis) {
                             if (tMillisSinceLastRelayChange
-                                    > (TIMEOUT_RELAY_ON_SIGNAL_MINUTES + TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES) * 60000L) {
+                                    > WhistleSwitchControl.RelayOnTimeoutMillis + (TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES * 60000L)) {
 #if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
                                 Serial.println("Timeout detected. Switch off.");
                                 Serial.print("MillisAtLastRelayChange=");
@@ -960,6 +1032,7 @@ void __attribute__((noreturn)) loop(void) {
                 WhistleSwitchControl.MainState = DETECT_FREQUENCY;
                 digitalWriteFast(RELAY_OUT, LOW);
                 signalRangeIndexByLed();
+                signalTimeoutByLed();
                 ButtonControl.ButtonReleaseJustDetected = false;
 #else
                 // second push happened before timeout -> perform reset (this does not work with arduino bootloader)
@@ -977,19 +1050,24 @@ void __attribute__((noreturn)) loop(void) {
             }
         } else {
             /*********************************************************************
-             * PROGRAMMING starts here
+             * PROGRAMMING starts here. State:
+             *     2 PROGRAM_SIMPLE
+             *     3 PROGRAM_ADVANCED_FREQUENCY_RANGE
+             *     4 PROGRAM_ADVANCED_FREQUENCY_DURATION,
              *********************************************************************/
             // get new values, since the ISR can have changed it
-            uint32_t tLastButtonInterruptMillis = ButtonControl.MillisAtLastInterrupt;
+            uint32_t tLastButtonActiveMillis = ButtonControl.MillisAtButtonGoingActive;
             uint32_t tMillis = millis();
-            // check for timeout
-            if (tMillis - tLastButtonInterruptMillis > PROGRAM_MODE_TIMEOUT_MILLIS) {
-                ButtonControl.MillisAtLastInterrupt = tMillis; // avoid endless timeouts ;-)
+            // check for programming timeout
+            if (tMillis - tLastButtonActiveMillis > PROGRAM_MODE_TIMEOUT_MILLIS) {
                 setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS, 1);
                 WhistleSwitchControl.MainState = PROGRAM_WAIT_FOR_FEEDBACK_END;
 
 #if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
-                Serial.println("timeout");
+                Serial.print("Programming timeout millis()=");
+                Serial.print(tMillis);
+                Serial.print(" MillisAtButtonGoingActive=");
+                Serial.println(ButtonControl.MillisAtButtonGoingActive);
 #endif
             } else if (WhistleSwitchControl.MainState == PROGRAM_SIMPLE) {
                 /*
@@ -999,13 +1077,10 @@ void __attribute__((noreturn)) loop(void) {
                     // increment range count
                     ButtonControl.ButtonReleaseJustDetected = false;
                     WhistleSwitchControl.ButtonPressCounter++;
-                    if (WhistleSwitchControl.ButtonPressCounter > ((sizeof(predefinedRangesStart) / sizeof(uint16_t)) + 2)) {
-                        WhistleSwitchControl.ButtonPressCounter = ((sizeof(predefinedRangesStart) / sizeof(uint16_t)) + 2);
-                    }
 
 #ifdef INFO
 #if defined(__AVR_ATtiny85__)
-                    writeString_P(PSTR("Count="));
+                    writeString(F("Count="));
                     writeUnsignedByte(WhistleSwitchControl.ButtonPressCounter);
                     writeValueCli('\n');
 
@@ -1014,24 +1089,32 @@ void __attribute__((noreturn)) loop(void) {
                     Serial.println(WhistleSwitchControl.ButtonPressCounter);
 #endif
 #endif
-                    // echo button
-                    setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS * 3, 1);
+                    // echo button press
+                    setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS, 1);
+
                 } else if ((WhistleSwitchControl.ButtonPressCounter > 0)
-                        && (tMillis - tLastButtonInterruptMillis > PROGRAM_MODE_SIMPLE_END_DETECT_MILLIS)) {
+                        && (tMillis - tLastButtonActiveMillis > PROGRAM_MODE_SIMPLE_END_DETECT_MILLIS)) {
                     /*
-                     * Timeout detected -> set new range
+                     * Timeout detected -> set new timeout state
                      */
                     if (WhistleSwitchControl.ButtonPressCounter > (sizeof(predefinedRangesStart) / sizeof(uint16_t))) {
                         /*
-                         * Set relay on timeout
+                         * Set/Reset "relay on" timeout
                          */
-                        if (WhistleSwitchControl.ButtonPressCounter == (sizeof(predefinedRangesStart) / sizeof(uint16_t)) + 1) {
-                            WhistleSwitchControl.RelayOnTimeoutIsEnabled = true;
+                        if (WhistleSwitchControl.ButtonPressCounter
+                                > (sizeof(predefinedRangesStart) / sizeof(uint16_t)) + TIMEOUT_RELAY_ON_STATE_MAX) {
+                            WhistleSwitchControl.RelayOnTimeoutState = TIMEOUT_RELAY_ON_STATE_DISABLED;
+                            WhistleSwitchControl.ButtonPressCounter = (sizeof(predefinedRangesStart) / sizeof(uint16_t))
+                                    + TIMEOUT_RELAY_ON_STATE_MAX + 1;
                         } else {
-                            WhistleSwitchControl.RelayOnTimeoutIsEnabled = false;
+                            WhistleSwitchControl.RelayOnTimeoutState = WhistleSwitchControl.ButtonPressCounter
+                                    - (sizeof(predefinedRangesStart) / sizeof(uint16_t));
                         }
                         eepromWriteTimeoutFlag();
                     } else {
+                        /*
+                         * Set new frequency range here
+                         */
                         FrequencyDetectorControl.FrequencyMatchLow = predefinedRangesStart[WhistleSwitchControl.ButtonPressCounter
                                 - 1];
                         FrequencyDetectorControl.FrequencyMatchHigh = predefinedRangesEnd[WhistleSwitchControl.ButtonPressCounter
@@ -1039,7 +1122,7 @@ void __attribute__((noreturn)) loop(void) {
                         setMillisNeededForValidMatch(MATCH_MILLIS_NEEDED_DEFAULT);
                         eepromWriteParameter();
                     }
-                    // echo recognized parameter
+                    // echo recognized button presses
                     setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS * 3, WhistleSwitchControl.ButtonPressCounter);
                     WhistleSwitchControl.MainState = PROGRAM_WAIT_FOR_FEEDBACK_END;
                 }
@@ -1069,7 +1152,7 @@ void __attribute__((noreturn)) loop(void) {
                     }
 
 #if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
-                    Serial.print(" last=");
+                    Serial.print("Advanced: last=");
                     Serial.print(WhistleSwitchControl.FrequencyLast);
                     Serial.print(" act=");
                     Serial.print(tFrequency);
@@ -1087,7 +1170,7 @@ void __attribute__((noreturn)) loop(void) {
                 }
             } else if (WhistleSwitchControl.MainState == PROGRAM_ADVANCED_FREQUENCY_DURATION) {
                 // end detection (timeout handling) if a range has been chosen
-                if (tMillis - tLastButtonInterruptMillis > PROGRAM_MODE_ADVANCED_END_DETECT_MILLIS) {
+                if (tMillis - tLastButtonActiveMillis > PROGRAM_MODE_ADVANCED_END_DETECT_MILLIS) {
 // set duration to default because it is not specified by additional button press
                     setMillisNeededForValidMatch(MATCH_MILLIS_NEEDED_DEFAULT);
 // write parameter for range to eeprom here since values are valid and programming ends here
@@ -1126,44 +1209,38 @@ void __attribute__((noreturn)) loop(void) {
 /*
  *  check for long press timings in order to signal and prepare state changes
  */
-void handleButtonPressed() {
-    uint32_t tMillisSinceLastInterrupt = millis() - ButtonControl.MillisAtLastInterrupt;
-    // debouncing is needed here too!
-    if (tMillisSinceLastInterrupt >= BUTTON_DEBOUNCE_MILLIS) {
-        ButtonControl.MillisOfButtonPress = tMillisSinceLastInterrupt;
-        /*
-         * prepare for state change on ButtonReleaseJustDetected
-         * signal programming state while button is still pressed and not after release
-         */
-        if (ButtonControl.MillisOfButtonPress > BUTTON_PUSH_ENTER_PROGRAM_SIMPLE_MILLIS) {
-            if (WhistleSwitchControl.FeedbackState == DETECT_FREQUENCY) {
+void detectLongButtonPress() {
+    /*
+     * prepare for state change on ButtonReleaseJustDetected
+     * signal programming state while button is still pressed (and not after button release)
+     */
+    uint32_t tMillisOfButtonPress = millis() - ButtonControl.MillisAtButtonGoingActive;
+    if (tMillisOfButtonPress > BUTTON_PUSH_ENTER_PROGRAM_SIMPLE_MILLIS) {
+        if (WhistleSwitchControl.ButtonPressTempState == DETECT_FREQUENCY) {
 #if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
-                Serial.println("Prepare for simple programming state");
+            Serial.println("Enter simple programming state");
 #endif
-                /*
-                 * Prepare for PROGRAM_SIMPLE but do not change mainState here!
-                 * Changing state is done in main loop upon button release.
-                 */
-                WhistleSwitchControl.FeedbackState = PROGRAM_SIMPLE;
-                setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS * 3, 1);
-            } else if (ButtonControl.MillisOfButtonPress > BUTTON_PUSH_ENTER_PROGRAM_ADVANCED_MILLIS) {
-                if (WhistleSwitchControl.FeedbackState == PROGRAM_SIMPLE) {
+            /*
+             * Prepare for PROGRAM_SIMPLE but do not change mainState here!
+             * Changing state is done in main loop upon button release.
+             */
+            WhistleSwitchControl.ButtonPressTempState = PROGRAM_SIMPLE;
+            setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS * 3, 1);
+        } else if (tMillisOfButtonPress > BUTTON_PUSH_ENTER_PROGRAM_ADVANCED_MILLIS) {
 #if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
-                    Serial.println("Prepare for advanced programming state");
+            Serial.println("Enter advanced programming state");
 #endif
-                    // prepare for PROGRAM_ADVANCED_FREQUENCY_RANGE
-                    WhistleSwitchControl.FeedbackState = PROGRAM_ADVANCED_FREQUENCY_RANGE;
-                    FrequencyDetectorControl.FrequencyMatchLow = 1000;
-                    FrequencyDetectorControl.FrequencyMatchHigh = 0;
-                    setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS * 3, 2);
-                }
-            }
+            // prepare for PROGRAM_ADVANCED_FREQUENCY_RANGE
+            WhistleSwitchControl.ButtonPressTempState = PROGRAM_ADVANCED_FREQUENCY_RANGE;
+            FrequencyDetectorControl.FrequencyMatchLow = 1000;
+            FrequencyDetectorControl.FrequencyMatchHigh = 0;
+            setFeedbackLedBlinkState(TIMING_FREQUENCY_LOWER_MILLIS * 3, 2);
         }
     }
 }
 
 /*
- * Button change handler
+ * Button pin change handler
  * Problem: we are not sure that the level we read, is the level which triggers the interrupt, therefore do debouncing here
  * compute active period duration
  */
@@ -1173,18 +1250,60 @@ ISR(PCINT0_vect) {
 #else
     ISR(PCINT2_vect) {
 #endif
-    uint32_t tMillis = millis();
-    uint32_t tMillisSinceLastInterrupt = tMillis - ButtonControl.MillisAtLastInterrupt;
-    ButtonControl.MillisAtLastInterrupt = tMillis;
-    // use delayMicroseconds() since we are in an interrupt service routine and delay(), using the timer, is not working
-    delayMicroseconds(BUTTON_DEBOUNCE_MILLIS * 1000U);
-    if (BUTTON_PIN_ACTIVE) {
-        ButtonControl.ButtonActiveDetected = true;
-    } else if (ButtonControl.ButtonActiveDetected) {
-// Button release here
-        ButtonControl.ButtonActiveDetected = false;
-        ButtonControl.MillisOfButtonPress = tMillisSinceLastInterrupt;
-        ButtonControl.ButtonReleaseJustDetected = true;
+        /*
+         * Debouncing: disable Pin Change interrupt, clear pending interrupt flag and enable timer interrupt, since latter might be disabled by readSignal()
+         */
+#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
+        BIT_SET(TIMING_PORT, TIMING_PIN);
+        PCICR = 0; //PCINT2 disable
+        PCIFR = 1 << PCIF2; // reset pending interrupts
+#endif
+#if defined(__AVR_ATtiny85__)
+        GIMSK &= ~(1 << PCIE); //PCINT disable
+        GIFR = 1 << PCIF;// reset pending interrupts
+#endif
+#if defined(TIMSK) && defined(TOIE0)
+        TIMSK |= 1 << TOIE0;
+#elif defined(TIMSK0) && defined(TOIE0)
+        TIMSK0 |= 1 << TOIE0;
+#else
+#error  Timer 0 overflow interrupt not set correctly
+#endif
+        sei();
+        // enable timer interrupts while debouncing
+
+        uint32_t tMillis = millis();
+        /*
+         * Use delayMicroseconds() since we are in an interrupt service routine and delay(), using the timer, is not working
+         */
+#if defined(__AVR_ATtiny85__)
+        delayMicroseconds(BUTTON_DEBOUNCE_MILLIS * 1000U);
+#else
+        for (int i = 0; i < 4; ++i) {
+            // for(), since in delayMicroseconds() we find "us <<= 2;" for 16 MHz :-(
+            delayMicroseconds(BUTTON_DEBOUNCE_MILLIS * 250U);
+        }
+#endif
+
+        if (BUTTON_PIN_ACTIVE) {
+            // set only if release is already processed, otherwise it may be extended bouncing
+            ButtonControl.ButtonActiveDetected = true;
+            ButtonControl.MillisAtButtonGoingActive = tMillis;
+        } else if (ButtonControl.ButtonActiveDetected) {
+            // Button release here
+            setButtonReleasedState(tMillis);
+        }
+
+        cli();
+        // restore old state
+#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
+        PCIFR = 1 << PCIF2; // reset pending interrupts
+        PCICR = 1 << PCIE2; //PCINT2 enable
+        BIT_CLEAR(TIMING_PORT, TIMING_PIN);
+#endif
+#if defined(__AVR_ATtiny85__)
+        GIFR = 1 << PCIF; // reset pending interrupts
+        GIMSK |= 1 << PCIE;//PCINT enable
+#endif
     }
-}
 

@@ -46,7 +46,11 @@
 /*
  * Number of samples used for detecting the frequency of the signal.
  * 1024 -> 53.248 milliseconds / 18.78 Hz at 16 MHz clock with prescaler 64 and 13 cycles/sample (=> 52usec/sample | 19230 Hz sample rate)
+ *  For frequency below 400Hz it might be good to change PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
+ *  1024 -> 106.496 milliseconds / 9.39 Hz at 16 MHz clock with prescaler 128 and 13 cycles/sample (=> 104usec/sample | 9615 Hz sample rate)
+ *
  *  512 -> 26.624 milliseconds / 37.56 Hz at  1 MHz clock with prescaler  4 and 13 cycles/sample (=> 52usec/sample | 19230 Hz sample rate)
+ *
  */
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
 #define NUMBER_OF_SAMPLES 1024
@@ -78,30 +82,41 @@
 #if NUMBER_OF_SAMPLES == 512
 // 6 -> 160 milliseconds for 512 samples
 #define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 8   // 212ms
-#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 8        // - to avoid short flashes at random signal input
+#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 12        // - to avoid short flashes at random signal input
 #else
 // 3 -> 160 milliseconds for 1024 samples at 52usec/sample
 #define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 3   //
-#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 3        // - to avoid short flashes at random signal input
+#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 6        // - to avoid short flashes at random signal input
 #endif
 
-// sample time values for Prescaler for 16 MHz 4(13*0,25=3,25us),8(6,5us),16(13us),32(26us),64(52us),128(104us)
-#define PRESCALE4    2
-#define PRESCALE8    3
-#define PRESCALE16   4
-#define PRESCALE32   5
-#define PRESCALE64   6
-#define PRESCALE128  7
+// sample time values for Prescaler for 16 MHz 4(13*0,25=3,25us), 8(6,5us), 16(13us), 32(26us), 64(52us), 128(104us)
+#define ADC_PRESCALE2    1
+#define ADC_PRESCALE4    2
+#define ADC_PRESCALE8    3
+#define ADC_PRESCALE16   4
+#define ADC_PRESCALE32   5
+#define ADC_PRESCALE64   6
+#define ADC_PRESCALE128  7
 
 /*
  * Default timing for reading -> 19,23 kHz sample rate
  * Formula is F_CPU / (PrescaleFactor * 13)
+ * For frequency below 400Hz it might be good to increase PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
+ * For frequencies above 3kHz it might be good to decrease PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE32 or even lower.
  */
 #if F_CPU == 16000000L
-#define PRESCALE_VALUE_DEFAULT PRESCALE64 // 52 microseconds per ADC sample at 16 Mhz Clock => 19,23kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 52 microseconds per ADC sample at 16 Mhz Clock => 19,23kHz sample rate
 #elif F_CPU == 1000000L
-#define PRESCALE_VALUE_DEFAULT PRESCALE4 // 52 microseconds per ADC sample at 1 Mhz Clock => 19,23kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE4 // 52 microseconds per ADC sample at 1 Mhz Clock => 19,23kHz sample rate
 #endif
+
+/*
+ * storage for millis value to enable compensation for interrupt disable at signal acquisition etc.
+ */
+#if ( defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) ) && defined(ATTINY_CORE)
+#define timer0_millis millis_timer_millis // I use the ATTinyCore library which uses other variable name
+#endif
+extern volatile unsigned long timer0_millis;
 
 // FrequencyActual error values
 #define SIGNAL_NO_TRIGGER 0
@@ -111,12 +126,16 @@
 // You get this error code if more than 1/8 of the samples are greater than 1.5 or less than 0.75 of the average period
 #define SIGNAL_DISTRIBUTION_PLAUSI_FAILED 3
 #define SIGNAL_MAX_ERROR_CODE 3 // the highest error value
-extern const char ErrorString_0[] PROGMEM;
-extern const char ErrorString_1[] PROGMEM;
-extern const char ErrorString_2[] PROGMEM;
-extern const char ErrorString_3[] PROGMEM;
-extern const char *ErrorStrings[];
 
+const char ErrorString_0[] PROGMEM = "No trigger";
+const char ErrorString_1[] PROGMEM = "Signal low";
+const char ErrorString_2[] PROGMEM = "No signal zero crossing at start or end of sample";
+const char ErrorString_3[] PROGMEM = "Periods between signal zero crossing during the sample are too different";
+extern const char *ErrorStrings[SIGNAL_MAX_ERROR_CODE + 1];
+
+const char ErrorStringShort_2[] PROGMEM = "No 0 xing at start or end";
+const char ErrorStringShort_3[] PROGMEM = "Periods too different";
+extern const char *ErrorStringsShort[SIGNAL_MAX_ERROR_CODE + 1];
 // Result values for Match*
 enum MatchStateEnum {
     FREQUENCY_MATCH_INVALID /*Errors have happened*/, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
@@ -124,52 +143,64 @@ enum MatchStateEnum {
 
 struct FrequencyDetectorControlStruct {
 
-    /****************************************
-     * Values used and set by readSignal()
+    /**********************************************
+     * All values are used or set by readSignal()
+     *********************************************/
+    // INPUT
+    /*
+     * 3 Values set by setFrequencyDetectorReadingPrescaleValue()
      */
     uint8_t ADCPrescalerValue;
     uint16_t FrequencyOfOneSample;    // to compute the frequency from the number of samples of one signal wave
     uint16_t PeriodOfOneSampleMicros; // to compute the matches needed from the number of loops
 
     /*
-     * Minimum signal strength value to produce valid output and and do new trigger level computation. Otherwise return SIGNAL_STRENGTH_LOW
+     * Value set by setFrequencyDetectorReadingValues()
+     * Minimum signal strength value to produce valid output and do new trigger level computation. Otherwise return SIGNAL_STRENGTH_LOW
      */
     uint16_t RawVoltageMinDelta; // Threshold for minimum SignalDelta of raw ADC value for valid signal strength. 0x40=312mV at 5V and 68.75mY at 1.1V, 0x20=156/34,37 mVolt
-    uint16_t SignalDelta; // MaxValue - MinValue
-    uint16_t AverageLevel;  // = SumOfSampleValues / NumberOfSamples
 
+    // INTERNALLY
     /*
-     * Values for automatic trigger level adjustment
+     * internally computed values for automatic trigger level adjustment
      */
     uint16_t TriggerLevel; // = MinValue + ((MaxValue - MinValue)/2)
     uint16_t TriggerLevelLower; // = TriggerLevel - (tDelta / 8) - for Hysteresis
 
+    // OUTPUT
     /*
-     * Raw frequency output value
+     * Values of sampled signal input
      */
-    uint16_t FrequencyActual;   // Frequency in Hz or "error code"  SIGNAL_...
+    uint16_t SignalDelta; // MaxValue - MinValue
+    uint16_t AverageLevel;  // = SumOfSampleValues / NumberOfSamples
 
     /*
-     * Other values computed by readSignal() to be used by doPlausi()
+     * Values computed by readSignal() to be used by doPlausi()
      */
+    uint16_t FrequencyActual;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doPlausi()
     uint8_t PeriodCountActual; // Actual count of periods in all samples - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1)!!!
     uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi
     uint16_t TriggerFirstPosition; // position of first detection of a trigger in all samples
     uint16_t TriggerLastPosition;  // position of last detection of a trigger in all samples
 
-    /*************************************************
-     * Parameters for computeDirectAndFilteredMatch()
-     */
+    /**************************************************
+     * 9 Parameters for computeDirectAndFilteredMatch()
+     *************************************************/
+    // INPUT
     uint16_t FrequencyMatchLow;   // Thresholds for matching
     uint16_t FrequencyMatchHigh;
-    uint16_t FrequencyFiltered;   // internal value - low pass filter value for frequency
 
-    uint8_t MaxMatchDropoutCount;   // number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
+    uint8_t MaxMatchDropoutCount; // number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
     uint8_t MinMatchNODropoutCount; // number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+    // INTERNALLY
     uint8_t MatchDropoutCount;      // actual dropout count. If value falls below MaxMatchDropoutCount, filtered match is valid.
 
-    MatchStateEnum FrequencyMatchDirect;   // Result of match: TFREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
+    // OUTPUT
+    uint16_t FrequencyFiltered;   // Low pass filter value for frequency, e.g. to compute stable difference to target frequency.
+
+    MatchStateEnum FrequencyMatchDirect; // Result of match: TFREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
     MatchStateEnum FrequencyMatchFiltered; // Match state processed by low pass filter
+    // INTERNALLY
     uint8_t MatchLowPassFiltered;    // internal value - low pass filter value for computing FrequencyMatchFiltered
 };
 
