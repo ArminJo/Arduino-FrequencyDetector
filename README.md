@@ -1,7 +1,17 @@
 # Frequency Detector Library for Arduino and ATtinys
 
-# SUMMARY
-This library analyzes a (microphone) signal and outputs the detected frequency. It simply counts zero crossings and do not use FFT.
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Build Status](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector.svg?branch=master)](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector)
+
+Youtube video of whistle switch example in action.
+
+[![Demonstration of 3 whistle switches](https://i.ytimg.com/vi/_e2mElB8zJs/hqdefault.jpg)](https://www.youtube.com/watch?v=_e2mElB8zJs)
+
+# Download
+The actual version can be downloaded directly from GitHub [here](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/FrequencyDetector.zip?raw=true)
+
+# Internal operation
+This library analyzes a (microphone) signal and outputs the detected frequency. It simply counts zero crossings and **it does do not use FFT**.
 
 - readSignal() is the ADC read routine, which reads 1024/512 samples and computes the following values:
   1. Frequency of signal ```uint16_t FrequencyActual;```
@@ -17,10 +27,7 @@ and also low pass filters the result for smooth transitions between the 3 match 
   2. Match result ```MatchStateEnum FrequencyMatchDirect;```
   3. Low pass filtered match result ```MatchStateEnum FrequencyMatchFiltered```
   
-## Download
-The actual version can be downloaded directly from GitHub [here](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/FrequencyDetector.zip?raw=true)
-
-# SimpleFrequencyDetector EXAMPLE
+# SimpleFrequencyDetector example
 This example reads analog signal e.g. from MAX9814 Module at A1 and computes the frequency.
 If frequency is in the range of 1400 to 1700 Hz, the Arduino builtin LED will light up.
 It prints the detected frequency as well as plausibility errors.
@@ -32,7 +39,7 @@ Youtube Demonstration of SimpleFrequencyDetector with MAX9812 Module
 
 [![Demonstration of SimpleFrequencyDetector](https://img.youtube.com/vi/tsxfSx0iY5s/0.jpg)](https://www.youtube.com/watch?v=tsxfSx0iY5s)
  
-# WhistleSwitch EXAMPLE
+# WhistleSwitch example
 The WhistleSwitch example analyzes a microphone signal (I use a MAX9814 module from Adafruit) and toggles an output pin, if the main frequency is for a specified duration in a specified range.
 It works as a frequency detector for a whistle pitch which operates a mains relay. By using different pitches it is possible to control multiple relays in a single room.
 If the pitch is lower than the specified frequency, the feedback LED blinks slowly, if the pitch is higher it blinks fast.
