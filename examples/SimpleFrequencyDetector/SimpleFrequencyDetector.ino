@@ -50,12 +50,9 @@
 
 #define VERSION_EXAMPLE "1.0"
 
-// Pin 13 has an LED connected on most Arduino boards.
-const int LED_PIN = 13;
-
 void setup() {
 // initialize the digital pin as an output.
-    pinMode(LED_PIN, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
     Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
 
@@ -81,7 +78,7 @@ void loop() {
     uint16_t tFrequency = readSignal();
 
     //reset match indicator led
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
 
     if (tFrequency > SIGNAL_MAX_ERROR_CODE) {
         // print value for Arduino Serial Plotter
@@ -100,7 +97,7 @@ void loop() {
             computeDirectAndFilteredMatch(tFrequency);
             if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH) {
                 // signal match
-                digitalWrite(LED_PIN, HIGH);
+                digitalWrite(LED_BUILTIN, HIGH);
             }
         }
     }

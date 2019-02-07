@@ -410,10 +410,10 @@ void setMillisNeededForValidMatch(uint16_t aPeriodValidNeededMillis) {
 #ifdef DEBUG
     // 7500 micros for debug output at 115200Baud at main loop
     WhistleSwitchControl.MatchValidNeeded = tLongValue
-            / (((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES) + (7500 / (F_CPU / 1000000)));
+    / (((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES) + (7500 / (F_CPU / 1000000)));
 #else
     WhistleSwitchControl.MatchValidNeeded = tLongValue
-    / ((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES);
+            / ((long) FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES);
 #endif
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
     Serial.print("MatchValidNeeded=");
@@ -421,7 +421,7 @@ void setMillisNeededForValidMatch(uint16_t aPeriodValidNeededMillis) {
 #else
     writeString(F("MillisNeededForValidMatch="));
     writeUnsignedInt(WhistleSwitchControl.MillisNeededForValidMatch);
-    writeValueCli('\n');
+    writeChar('\n');
 #endif
 }
 
@@ -465,7 +465,7 @@ void eepromWriteTimeoutFlag() {
     } else {
         writeString(F("disabled"));
     }
-    writeValueCli('\n');
+    writeChar('\n');
 #else
     Serial.print("Timeout ");
     if (WhistleSwitchControl.RelayOnTimeoutState > TIMEOUT_RELAY_ON_STATE_DISABLED) {
@@ -711,7 +711,7 @@ void setup() {
     /*
      * For Arduinos with other than optiboot bootloader wdt_disable() comes too late here, since after reset the watchdog is still enabled
      * and uses fastest prescaler value (approximately 15 ms)
-     */ //
+     */
     wdt_disable();
 #if defined(__AVR_ATtiny85__)
     initTXPin();
@@ -808,7 +808,7 @@ void setup() {
     //initPinChangeInterrupt
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
     PCICR = 1 << PCIE2; //PCINT2 enable
-    PCMSK2 = digitalPinToBitMask(BUTTON_PIN); // =0x20 - Pin 5 enable
+    PCMSK2 = digitalPinToBitMask(BUTTON_PIN);// =0x20 - Pin 5 enable
 #endif
 #if defined(__AVR_ATtiny85__)
     GIMSK |= 1 << PCIE; //PCINT enable
@@ -831,7 +831,7 @@ void __attribute__((noreturn)) loop(void) {
 #if defined(__AVR_ATtiny85__)
             writeString(F("New MainState="));
             writeUnsignedByte(WhistleSwitchControl.MainState);
-            writeValueCli('\n');
+            writeChar('\n');
 #else
             Serial.print("New MainState=");
             Serial.println(WhistleSwitchControl.MainState);
@@ -1082,7 +1082,7 @@ void __attribute__((noreturn)) loop(void) {
 #if defined(__AVR_ATtiny85__)
                     writeString(F("Count="));
                     writeUnsignedByte(WhistleSwitchControl.ButtonPressCounter);
-                    writeValueCli('\n');
+                    writeChar('\n');
 
 #else
                     Serial.print("Count=");
@@ -1250,60 +1250,60 @@ ISR(PCINT0_vect) {
 #else
     ISR(PCINT2_vect) {
 #endif
-        /*
-         * Debouncing: disable Pin Change interrupt, clear pending interrupt flag and enable timer interrupt, since latter might be disabled by readSignal()
-         */
+    /*
+     * Debouncing: disable Pin Change interrupt, clear pending interrupt flag and enable timer interrupt, since latter might be disabled by readSignal()
+     */
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
-        BIT_SET(TIMING_PORT, TIMING_PIN);
-        PCICR = 0; //PCINT2 disable
-        PCIFR = 1 << PCIF2; // reset pending interrupts
+    BIT_SET(TIMING_PORT, TIMING_PIN);
+    PCICR = 0; //PCINT2 disable
+    PCIFR = 1 << PCIF2;// reset pending interrupts
 #endif
 #if defined(__AVR_ATtiny85__)
-        GIMSK &= ~(1 << PCIE); //PCINT disable
-        GIFR = 1 << PCIF;// reset pending interrupts
+    GIMSK &= ~(1 << PCIE); //PCINT disable
+    GIFR = 1 << PCIF; // reset pending interrupts
 #endif
 #if defined(TIMSK) && defined(TOIE0)
-        TIMSK |= 1 << TOIE0;
+    TIMSK |= 1 << TOIE0;
 #elif defined(TIMSK0) && defined(TOIE0)
-        TIMSK0 |= 1 << TOIE0;
+    TIMSK0 |= 1 << TOIE0;
 #else
 #error  Timer 0 overflow interrupt not set correctly
 #endif
-        sei();
-        // enable timer interrupts while debouncing
+    sei();
+    // enable timer interrupts while debouncing
 
-        uint32_t tMillis = millis();
-        /*
-         * Use delayMicroseconds() since we are in an interrupt service routine and delay(), using the timer, is not working
-         */
+    uint32_t tMillis = millis();
+    /*
+     * Use delayMicroseconds() since we are in an interrupt service routine and delay(), using the timer, is not working
+     */
 #if defined(__AVR_ATtiny85__)
-        delayMicroseconds(BUTTON_DEBOUNCE_MILLIS * 1000U);
+    delayMicroseconds(BUTTON_DEBOUNCE_MILLIS * 1000U);
 #else
-        for (int i = 0; i < 4; ++i) {
-            // for(), since in delayMicroseconds() we find "us <<= 2;" for 16 MHz :-(
-            delayMicroseconds(BUTTON_DEBOUNCE_MILLIS * 250U);
-        }
+    for (int i = 0; i < 4; ++i) {
+        // for(), since in delayMicroseconds() we find "us <<= 2;" for 16 MHz :-(
+        delayMicroseconds(BUTTON_DEBOUNCE_MILLIS * 250U);
+    }
 #endif
 
-        if (BUTTON_PIN_ACTIVE) {
-            // set only if release is already processed, otherwise it may be extended bouncing
-            ButtonControl.ButtonActiveDetected = true;
-            ButtonControl.MillisAtButtonGoingActive = tMillis;
-        } else if (ButtonControl.ButtonActiveDetected) {
-            // Button release here
-            setButtonReleasedState(tMillis);
-        }
+    if (BUTTON_PIN_ACTIVE) {
+        // set only if release is already processed, otherwise it may be extended bouncing
+        ButtonControl.ButtonActiveDetected = true;
+        ButtonControl.MillisAtButtonGoingActive = tMillis;
+    } else if (ButtonControl.ButtonActiveDetected) {
+        // Button release here
+        setButtonReleasedState(tMillis);
+    }
 
-        cli();
-        // restore old state
+    cli();
+    // restore old state
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
-        PCIFR = 1 << PCIF2; // reset pending interrupts
-        PCICR = 1 << PCIE2; //PCINT2 enable
-        BIT_CLEAR(TIMING_PORT, TIMING_PIN);
+    PCIFR = 1 << PCIF2; // reset pending interrupts
+    PCICR = 1 << PCIE2;//PCINT2 enable
+    BIT_CLEAR(TIMING_PORT, TIMING_PIN);
 #endif
 #if defined(__AVR_ATtiny85__)
-        GIFR = 1 << PCIF; // reset pending interrupts
-        GIMSK |= 1 << PCIE;//PCINT enable
+    GIFR = 1 << PCIF; // reset pending interrupts
+    GIMSK |= 1 << PCIE; //PCINT enable
 #endif
-    }
+}
 
