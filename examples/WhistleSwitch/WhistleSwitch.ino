@@ -98,6 +98,7 @@
  * Version 7.0 5/2018 introduced timeout for on-time duration. The setting is stored in EEPROM.
  * Version 7.1 5/2018 multiple timeouts possible.
  *              To enable the timeout, choose the dummy range 10 or 11 , to disable, use range 12 or greater.
+ * Version 7.2 2/2019 timeout feedback after boot now blinking slower.
  *
  */
 
@@ -107,13 +108,12 @@
 #error "Code size of this example is too large to fit in an ATtiny 25 or 45."
 #endif
 
-#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
-//#define INFO
-#define DEBUG
-#endif
 #if defined(__AVR_ATtiny85__)
 #define INFO
 //#define DEBUG
+#else
+//#define INFO
+#define DEBUG
 #endif
 
 #include <Arduino.h>
@@ -129,7 +129,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 
 #include "digitalWriteFast.h"
 
-// ATMEL ATTINY85 - LEGACY LAYOUT
+// ATMEL ATTINY85 - LEGACY LAYOUT - for my old PCBs
 //
 //                              +-\/-+
 //    RESET    Ain0 (D 5) PB5  1|    |8  Vcc
@@ -138,13 +138,13 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 //                        GND  4|    |5  PB0 (D 0) pwm0 - LED_FEEDBACK
 //                              +----+
 //
-// ATMEL ATTINY85 -  LAYOUT_FOR_20X_AMPLIFICATION
+// ATMEL ATTINY85 -  STANDARD LAYOUT - compatible with Digispark boards
 //
 //                                                     +-\/-+
-//                    PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  Vcc
-//    BUTTON - PCINT3/XTAL1/CLKI/!OC1B/ADC3 (D3) PB3  2|    |7  PB2 (D2) SCK/USCK/SCL/ADC1/T0/INT0/PCINT2 - RELAY_OUT
+//    RESET           PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  Vcc
+//    BUTTON - PCINT3/XTAL1/CLKI/!OC1B/ADC3 (D3) PB3  2|    |7  PB2 (D2) SCK/USCK/SCL/ADC1/T0/INT0/PCINT2 - TX Debug output
 //  SIGNAL_IN - PCINT4/XTAL2/CLKO/OC1B/ADC2 (D4) PB4  3|    |6  PB1 (D1) MISO/DO/AIN1/OC0B/OC1A/PCINT1 - LED_FEEDBACK
-//                                               GND  4|    |5  PB0 (D0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0 - TX Debug output
+//                                               GND  4|    |5  PB0 (D0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0 - RELAY_OUT
 //                                                     +----+
 // ATMEL ATMEGA328 / ARDUINO
 //
@@ -199,33 +199,37 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 
 #define BUTTON_PIN 3
 
-#ifdef LAYOUT_FOR_20X_AMPLIFICATION
-#define RELAY_OUT 2
-#define LED_FEEDBACK 1
-#define DEBUG_PIN 0
-#if (TX_PIN != DEBUG_PIN)
-#  error "Change TX_PIN definition in TinySerialOut.h to match DEBUG_PIN."
-#endif
-
-// can only compare with low, because active from digitalReadFast() is one bit set in a byte!
-#define BUTTON_PIN_ACTIVE (digitalReadFast(BUTTON_PIN) != LOW)
-
-#define ADC_CHANNEL 7 // Differential input (ADC2 - ADC3) * 20
-#define ADC_REFERENCE INTERNAL
-
-#else
-// Legacy layout
+#ifdef LEGACY_LAYOUT
 #define RELAY_OUT 4
 #define LED_FEEDBACK 0
 #define DEBUG_PIN 1
 #if (TX_PIN != DEBUG_PIN)
-#  error "Change TX_PIN definition in TinySerialOut.h to match DEBUG_PIN."
+#error "Change TX_PIN definition in TinySerialOut.h to match DEBUG_PIN."
 #endif
 
-#define BUTTON_PIN_ACTIVE (digitalReadFast(BUTTON_PIN) == LOW)
+#else // LEGACY_LAYOUT
+// Standard layout
+#define RELAY_OUT 0
+#define LED_FEEDBACK 1
+#define DEBUG_PIN 2
+#if (TX_PIN != DEBUG_PIN)
+#error "Change TX_PIN definition in TinySerialOut.h to match DEBUG_PIN."
+#endif
 
+#endif // LEGACY_LAYOUT
+
+#ifdef LAYOUT_FOR_20X_AMPLIFICATION
+// Here button pin is also used as differential input, therefore need inverse logic
+// can only compare with LOW not with HIGH, because active from digitalReadFast() is one bit set in a byte!
+#define BUTTON_PIN_ACTIVE (digitalReadFast(BUTTON_PIN) != LOW)
+#define ADC_CHANNEL 7 // Differential input (ADC2 - ADC3) * 20
+#define ADC_REFERENCE INTERNAL
+
+#else
+#define BUTTON_PIN_ACTIVE (digitalReadFast(BUTTON_PIN) == LOW)
 #define ADC_CHANNEL ADC_CHANNEL_DEFAULT
 #define ADC_REFERENCE DEFAULT
+
 #endif // LAYOUT_FOR_20X_AMPLIFICATION
 
 #define TIMING_PIN LED_FEEDBACK
@@ -622,8 +626,8 @@ void processMatchState() {
     }
 }
 
-void printInfos(uint16_t aFrequency) {
 #ifdef DEBUG
+void printInfos(uint16_t aFrequency) {
     static uint16_t sFrequencyFilteredPrinted;
     static uint16_t sFrequencyPrinted;
     static int16_t sTriggerLevelPrinted;
@@ -656,7 +660,7 @@ void printInfos(uint16_t aFrequency) {
         writeUnsignedInt(FrequencyDetectorControl.AverageLevel);
         writeString(F(" D="));
         writeUnsignedInt(FrequencyDetectorControl.SignalDelta);
-        writeValueCli('\n');
+        writeChar('\n');
 #else
         Serial.print("Filtered=");
         Serial.print(FrequencyDetectorControl.FrequencyFiltered);
@@ -679,8 +683,8 @@ void printInfos(uint16_t aFrequency) {
         Serial.println();
 #endif
     }
-#endif
 }
+#endif
 
 // Example for placing code at init sections see: http://www.nongnu.org/avr-libc/user-manual/mem_sections.html
 void MyInit(void) __attribute__ ((naked)) __attribute__ ((section (".init8")));
@@ -688,14 +692,22 @@ void MyInit(void) {
 }
 
 void signalTimeoutByLed() {
+#if defined(__AVR_ATtiny85__)
+    writeString(F("Timeout state="));
+    writeUnsignedByte(WhistleSwitchControl.RelayOnTimeoutState);
+    writeString(F("\r\n"));
+#else
+    Serial.print("Timeout state=");
+    Serial.println(WhistleSwitchControl.RelayOnTimeoutState);
+#endif
     /*
      * signal timeout state with short pulse
      */
     for (uint8_t i = 0; i < WhistleSwitchControl.RelayOnTimeoutState; ++i) {
         digitalWriteFast(LED_FEEDBACK, HIGH);
-        delay(TIMING_FREQUENCY_LOWER_MILLIS / 4);
+        delay(TIMING_FREQUENCY_LOWER_MILLIS / 2);
         digitalWriteFast(LED_FEEDBACK, LOW);
-        delay(TIMING_FREQUENCY_LOWER_MILLIS / 4);
+        delay(TIMING_FREQUENCY_LOWER_MILLIS / 2);
     }
 }
 
@@ -734,6 +746,7 @@ void setup() {
     pinMode(RELAY_OUT, OUTPUT);
 
 #ifdef LAYOUT_FOR_20X_AMPLIFICATION
+    // Here button pin is also used as differential input, therefore need inverse logic
     pinMode(BUTTON_PIN, INPUT);
 #else
     pinMode(BUTTON_PIN, INPUT_PULLUP);  // 100kOhm to VCC
@@ -806,13 +819,12 @@ void setup() {
     signalTimeoutByLed();
 
     //initPinChangeInterrupt
-#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
-    PCICR = 1 << PCIE2; //PCINT2 enable
-    PCMSK2 = digitalPinToBitMask(BUTTON_PIN);// =0x20 - Pin 5 enable
-#endif
 #if defined(__AVR_ATtiny85__)
     GIMSK |= 1 << PCIE; //PCINT enable
     PCMSK = digitalPinToBitMask(BUTTON_PIN);
+#else
+    PCICR = 1 << PCIE2; //PCINT2 enable
+    PCMSK2 = digitalPinToBitMask(BUTTON_PIN);// =0x20 - Pin 5 enable
 #endif
 }
 

@@ -126,7 +126,11 @@ public:
     void println(void);
 };
 
+// To be compatible with ATTinyCore
+#if not defined(USE_SOFTWARE_SERIAL)
 extern TinyDebugSerial Serial;
+#endif
+
 #endif // defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
 
 #endif /* TINY_SERIAL_OUT_H_ */

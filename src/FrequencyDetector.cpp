@@ -33,14 +33,15 @@
  *
  */
 
-#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
+#include <Arduino.h>
+
+#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
+#include "TinySerialOut.h"
+#else
 //#define DEBUG
 //#define TRACE
-#else
-#include "TinySerialOut.h"
 #endif
 
-#include <Arduino.h>
 #include "FrequencyDetector.h"
 
 #define maximumAllowableCountOf(aPeriodCountTotal) (aPeriodCountTotal / 8)
@@ -116,14 +117,15 @@ void setFrequencyDetectorReadingPrescaleValue(uint8_t aADCPrescalerValue) {
     FrequencyDetectorControl.PeriodOfOneSampleMicros = ((1 << aADCPrescalerValue) * 13) / (F_CPU / 1000000L);
     uint32_t tFrequencyOfOneSample = 1000000L / FrequencyDetectorControl.PeriodOfOneSampleMicros;
     FrequencyDetectorControl.FrequencyOfOneSample = tFrequencyOfOneSample;
-#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
-    Serial.print("SamplePeriod=");
-    Serial.print(FrequencyDetectorControl.PeriodOfOneSampleMicros);
-    Serial.println("us");
-#else
+
+#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
     writeString("SamplePeriod=");
     writeUnsignedInt(FrequencyDetectorControl.PeriodOfOneSampleMicros);
     writeString("us\n");
+#else
+    Serial.print("SamplePeriod=");
+    Serial.print(FrequencyDetectorControl.PeriodOfOneSampleMicros);
+    Serial.println("us");
 #endif
 }
 

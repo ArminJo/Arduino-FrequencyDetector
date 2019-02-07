@@ -52,11 +52,10 @@
  *  512 -> 26.624 milliseconds / 37.56 Hz at  1 MHz clock with prescaler  4 and 13 cycles/sample (=> 52usec/sample | 19230 Hz sample rate)
  *
  */
-#if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
-#define NUMBER_OF_SAMPLES 1024
-#endif
 #if defined(__AVR_ATtiny85__)
 #define NUMBER_OF_SAMPLES 512
+#else
+#define NUMBER_OF_SAMPLES 1024
 #endif
 
 /*
@@ -106,6 +105,8 @@
  */
 #if F_CPU == 16000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 52 microseconds per ADC sample at 16 Mhz Clock => 19,23kHz sample rate
+#elif F_CPU == 8000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE32 // 52 microseconds per ADC sample at 8 Mhz Clock => 19,23kHz sample rate
 #elif F_CPU == 1000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE4 // 52 microseconds per ADC sample at 1 Mhz Clock => 19,23kHz sample rate
 #endif

@@ -144,3 +144,9 @@ MAX4466 / 9814 MICROPHONE  | | 1M
                             |
                            ___
 ```
+
+## Travis CI
+The FrequencyDetector library examples are built on Travis CI for the following boards:
+
+- Arduino Uno
+- Adafruit Trinket (using ATTiny85)
