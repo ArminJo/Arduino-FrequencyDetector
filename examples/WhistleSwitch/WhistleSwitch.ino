@@ -732,6 +732,8 @@ void setup() {
     writeString(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__ "\r\n"));
 #else
     Serial.begin(115200);
+    while (!Serial); //delay for Leonardo
+    // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
     pinMode(LED_LOWER, OUTPUT);
     pinMode(LED_MATCH, OUTPUT);
