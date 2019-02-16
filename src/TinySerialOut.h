@@ -74,8 +74,9 @@ inline void writeValue(uint8_t aValue) {
 
 
 // The same class as for plain arduino
-#ifndef F
+#if not defined(F) || not defined(ARDUINO_CORE_PRINTABLE_SUPPORT)
 class __FlashStringHelper;
+#undef F
 #define F(string_literal) (reinterpret_cast<const __FlashStringHelper *>(PSTR(string_literal)))
 #endif
 
@@ -100,7 +101,7 @@ void writeUnsignedLong(unsigned long aLong);
 void writeFloat(double aFloat);
 void writeFloat(double aFloat, uint8_t aDigits);
 
-class TinyDebugSerial {
+class TinySerialOut {
 public:
     void print(const __FlashStringHelper * aStringPtr);
     void print(const char* aStringPtr);
@@ -128,7 +129,7 @@ public:
 
 // To be compatible with ATTinyCore
 #if not defined(USE_SOFTWARE_SERIAL)
-extern TinyDebugSerial Serial;
+extern TinySerialOut Serial;
 #endif
 
 #endif // defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
