@@ -84,8 +84,8 @@
 #define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 12        // - to avoid short flashes at random signal input
 #else
 // 3 -> 160 milliseconds for 1024 samples at 52usec/sample
-#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 3   //
-#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 6        // - to avoid short flashes at random signal input
+#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 3 // number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
+#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 6 // number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
 #endif
 
 // sample time values for Prescaler for 16 MHz 4(13*0,25=3,25us), 8(6,5us), 16(13us), 32(26us), 64(52us), 128(104us)
@@ -114,8 +114,8 @@
 /*
  * storage for millis value to enable compensation for interrupt disable at signal acquisition etc.
  */
-#if ( defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) ) && defined(ATTINY_CORE)
-#define timer0_millis millis_timer_millis // I use the ATTinyCore library which uses other variable name
+#if ( defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) )
+#define timer0_millis millis_timer_millis // The ATTinyCore libraries use other variable name in wiring.c
 #endif
 extern volatile unsigned long timer0_millis;
 
@@ -141,6 +141,18 @@ extern const char *ErrorStringsShort[SIGNAL_MAX_ERROR_CODE + 1];
 enum MatchStateEnum {
     FREQUENCY_MATCH_INVALID /*Errors have happened*/, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
 };
+
+/*
+ * Values for MatchLowPassFiltered
+ * Valid values are filtered values from 50 to 150
+ */
+#define FILTER_VALUE_MAX        200
+#define FILTER_VALUE_MIN        0
+#define FILTER_VALUE_MIDDLE     ((FILTER_VALUE_MAX + FILTER_VALUE_MIN)/2)
+#define FILTER_VALUE_THRESHOLD  (FILTER_VALUE_MIDDLE/2)
+#define FILTER_VALUE_MATCH      FILTER_VALUE_MIDDLE
+#define FILTER_VALUE_MATCH_HIGHER_THRESHOLD     (FILTER_VALUE_MAX - FILTER_VALUE_THRESHOLD)
+#define FILTER_VALUE_MATCH_LOWER_THRESHOLD      (FILTER_VALUE_MIN + FILTER_VALUE_THRESHOLD)
 
 struct FrequencyDetectorControlStruct {
 
@@ -199,10 +211,10 @@ struct FrequencyDetectorControlStruct {
     // OUTPUT
     uint16_t FrequencyFiltered;   // Low pass filter value for frequency, e.g. to compute stable difference to target frequency.
 
-    MatchStateEnum FrequencyMatchDirect; // Result of match: TFREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
-    MatchStateEnum FrequencyMatchFiltered; // Match state processed by low pass filter
+    MatchStateEnum FrequencyMatchDirect; // Result of match: 0 to 3, FREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
+    MatchStateEnum FrequencyMatchFiltered; // same range asFrequencyMatchDirect. Match state processed by low pass filter
     // INTERNALLY
-    uint8_t MatchLowPassFiltered;    // internal value - low pass filter value for computing FrequencyMatchFiltered
+    uint8_t MatchLowPassFiltered;    // internal value 0 to FILTER_VALUE_MAX/200. Low pass filter value for computing FrequencyMatchFiltered
 };
 
 extern FrequencyDetectorControlStruct FrequencyDetectorControl;

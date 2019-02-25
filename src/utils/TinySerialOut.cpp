@@ -266,11 +266,46 @@ void writeFloat(double aFloat, uint8_t aDigits) {
 /*
  * The Serial Instance!!!
  */
+
+// #if ... to be compatible with ATTinyCores and AttinyDigisparkCores
+#if (defined(USE_SOFTWARE_SERIAL) && (USE_SOFTWARE_SERIAL != 0)) || defined(TINY_DEBUG_SERIAL_SUPPORTED)
+// Switch to SerialOut since Serial is already defined or comment out
+// the line 228 //#include "TinySoftwareSerial.h" in in ATTinyCores/src/tiny/Arduino.h for ATTinyCores
+// or line 18  //#include "TinyDebugSerial.h" in AttinyDigisparkCores/src/tiny/WProgram.h for AttinyDigisparkCores
+TinySerialOut SerialOut;
+#else
 TinySerialOut Serial;
+#endif
 
 /*
  * Member functions for TinySerialOut
  */
+
+void TinySerialOut::begin(long aBaudrate) {
+#if defined(USE_115200BAUD) //else smaller code, but only 38400 baud at 1MHz
+    if (aBaudrate != 115200) {
+        println(F("Only 115200 supported!"));
+    }
+#else
+#if (F_CPU == 1000000)
+    if (aBaudrate != 38400) {
+        println(F("Only 38400 supported!"));
+    }
+#else
+    if (aBaudrate != 230400) {
+        println(F("Only 230400 supported!"));
+    }
+#endif
+#endif
+}
+
+void TinySerialOut::end() {
+    // no action needed
+}
+
+void TinySerialOut::flush() {
+    // no action needed, since we do not use a buffer
+}
 
 void TinySerialOut::print(const char* aStringPtr) {
     writeString(aStringPtr);
@@ -348,6 +383,11 @@ void TinySerialOut::printHex(uint8_t aByte) {
         tStringBuffer[2] = '0';
     }
     writeString(tStringBuffer);
+}
+
+void TinySerialOut::println(const char* aStringPtr) {
+    print(aStringPtr);
+    print('\n');
 }
 
 void TinySerialOut::println(const __FlashStringHelper * aStringPtr) {

@@ -46,17 +46,31 @@
  */
 
 #include <Arduino.h>
-#include "FrequencyDetector.h"
 
-#define VERSION_EXAMPLE "1.0"
+#define VERSION_EXAMPLE "2.0"
+
+#define LED_NO_TRIGGER  5
+#define LED_SIGNAL_STRENGTH  6
+#define LED_PLAUSI_FIRST  7
+#define LED_PLAUSI_DISTRIBUTION  8
+
+#define ARDUINO_PLOTTER
+
+#include "FrequencyDetector.h"
 
 void setup() {
 // initialize the digital pin as an output.
     pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
-    while (!Serial); //delay for Leonardo
+    while (!Serial)
+        ; //delay for Leonardo
     // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
+
+    pinMode(LED_PLAUSI_FIRST, OUTPUT);
+    pinMode(LED_PLAUSI_DISTRIBUTION, OUTPUT);
+    pinMode(LED_SIGNAL_STRENGTH, OUTPUT);
+    pinMode(LED_NO_TRIGGER, OUTPUT);
 
     /*
      * initialize FrequencyDetector
@@ -75,32 +89,75 @@ void setup() {
 
 void loop() {
     /*
-     * Read samples and compute and output frequency
+     * Read samples and compute and output frequency ond doe plausi.
      */
     uint16_t tFrequency = readSignal();
+    tFrequency = doPlausi();
+    computeDirectAndFilteredMatch(tFrequency);
+
+    /*
+     * Show errors on LED's
+     */
+    digitalWrite(LED_SIGNAL_STRENGTH, LOW);
+    digitalWrite(LED_PLAUSI_FIRST, LOW);
+    digitalWrite(LED_PLAUSI_DISTRIBUTION, LOW);
+    digitalWrite(LED_NO_TRIGGER, LOW);
+
+    if (tFrequency == SIGNAL_STRENGTH_LOW) {
+        digitalWrite(LED_SIGNAL_STRENGTH, HIGH);
+    }
+    if (tFrequency == SIGNAL_FIRST_LAST_PLAUSI_FAILED) {
+        digitalWrite(LED_PLAUSI_FIRST, HIGH);
+    }
+    if (tFrequency == SIGNAL_DISTRIBUTION_PLAUSI_FAILED) {
+        digitalWrite(LED_PLAUSI_DISTRIBUTION, HIGH);
+    }
+    if (tFrequency == SIGNAL_NO_TRIGGER) {
+        digitalWrite(LED_NO_TRIGGER, HIGH);
+    }
+
+#ifdef ARDUINO_PLOTTER
+    /*
+     *  Print values for Arduino Serial Plotter
+     */
+    Serial.print(FrequencyDetectorControl.MatchDropoutCount * 64);
+    Serial.print(" ");
+    // FrequencyMatchDirect 0 to 3
+    Serial.print(FrequencyDetectorControl.FrequencyMatchDirect * 95);
+
+    Serial.print(" ");
+    // MatchLowPassFiltered 0 to 200
+    Serial.print(FrequencyDetectorControl.MatchLowPassFiltered * 2);
+    Serial.print(" ");
+    // FrequencyMatchFiltered 0 to 3
+    Serial.print(FrequencyDetectorControl.FrequencyMatchFiltered * 100);
+
+    // print them last to leave the bright colors for the first values
+    uint16_t tFrequencyForPlot = tFrequency;
+    if (tFrequencyForPlot <= SIGNAL_MAX_ERROR_CODE) {
+        tFrequencyForPlot = 600;
+    }
+    Serial.print(tFrequencyForPlot);
+    Serial.print(" ");
+    Serial.print(FrequencyDetectorControl.FrequencyFiltered);
+    Serial.print(" ");
+    Serial.println();
+#endif
 
     //reset match indicator led
     digitalWrite(LED_BUILTIN, LOW);
 
     if (tFrequency > SIGNAL_MAX_ERROR_CODE) {
-        // print value for Arduino Serial Plotter
-        Serial.println(tFrequency);
-
         /*
-         * Do plausibility check and print plausibility errors
+         * No signal errors here -> compute match
          */
-        tFrequency = doPlausi();
-        if (tFrequency <= SIGNAL_MAX_ERROR_CODE) {
-            Serial.println(reinterpret_cast<const __FlashStringHelper *>(ErrorStrings[tFrequency]));
-        } else {
-            /*
-             * No signal errors here -> compute match
-             */
-            computeDirectAndFilteredMatch(tFrequency);
-            if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH) {
-                // signal match
-                digitalWrite(LED_BUILTIN, HIGH);
-            }
+        if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH) {
+            // signal match
+            digitalWrite(LED_BUILTIN, HIGH);
         }
+
+    } else {
+        // incompatible with Serial Plotter
+//            Serial.println(reinterpret_cast<const __FlashStringHelper *>(ErrorStrings[tFrequency]));
     }
 }

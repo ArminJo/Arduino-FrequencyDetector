@@ -37,26 +37,15 @@
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
 #include "TinySerialOut.h"
-#else
+#endif
+
+//#define INFO
 //#define DEBUG
 //#define TRACE
-#endif
 
 #include "FrequencyDetector.h"
 
 #define maximumAllowableCountOf(aPeriodCountTotal) (aPeriodCountTotal / 8)
-
-/*
- * Values for low pass filtering the match result
- * Valid values are filtered values from 50 to 150
- */
-#define FILTER_VALUE_MAX        200
-#define FILTER_VALUE_MIN        0
-#define FILTER_VALUE_MIDDLE     ((FILTER_VALUE_MAX + FILTER_VALUE_MIN)/2)
-#define FILTER_VALUE_THRESHOLD  (FILTER_VALUE_MIDDLE/2)
-#define FILTER_VALUE_MATCH      FILTER_VALUE_MIDDLE
-#define FILTER_VALUE_MATCH_HIGHER_THRESHOLD     (FILTER_VALUE_MAX - FILTER_VALUE_THRESHOLD)
-#define FILTER_VALUE_MATCH_LOWER_THRESHOLD      (FILTER_VALUE_MIN + FILTER_VALUE_THRESHOLD)
 
 FrequencyDetectorControlStruct FrequencyDetectorControl;
 
@@ -118,14 +107,10 @@ void setFrequencyDetectorReadingPrescaleValue(uint8_t aADCPrescalerValue) {
     uint32_t tFrequencyOfOneSample = 1000000L / FrequencyDetectorControl.PeriodOfOneSampleMicros;
     FrequencyDetectorControl.FrequencyOfOneSample = tFrequencyOfOneSample;
 
-#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-    writeString("SamplePeriod=");
-    writeUnsignedInt(FrequencyDetectorControl.PeriodOfOneSampleMicros);
-    writeString("us\n");
-#else
-    Serial.print("SamplePeriod=");
+#ifdef INFO
+    Serial.print(F("SamplePeriod="));
     Serial.print(FrequencyDetectorControl.PeriodOfOneSampleMicros);
-    Serial.println("us");
+    Serial.println(F("us"));
 #endif
 }
 
@@ -284,13 +269,12 @@ uint16_t readSignal() {
 #error  Timer 0 overflow interrupt not set correctly
 #endif
 
-    uint16_t tRetval;
     /*
      * check for signal strength
      */
     if (tDelta < FrequencyDetectorControl.RawVoltageMinDelta) {
+        // don't compute new TriggerHysteresis value because signal is too low!!!!
         FrequencyDetectorControl.FrequencyActual = SIGNAL_STRENGTH_LOW;
-        tRetval = SIGNAL_STRENGTH_LOW; // don't compute new TriggerHysteresis value because signal is too low!!!!
     } else {
 
         // set hysteresis
@@ -298,7 +282,7 @@ uint16_t readSignal() {
         FrequencyDetectorControl.TriggerLevelLower = tTriggerValue - TriggerHysteresis;
 
         if (tPeriodCountActual == 0) {
-            tRetval = SIGNAL_NO_TRIGGER; // Frequency too low
+            FrequencyDetectorControl.FrequencyActual = SIGNAL_NO_TRIGGER; // Frequency too low
         } else {
 
             /*
@@ -309,34 +293,32 @@ uint16_t readSignal() {
                     / (FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition);
 
 #ifdef DEBUG
-            Serial.print("Delta U=");
+            Serial.print(F("Delta U="));
             Serial.print(tDelta);
-            Serial.print(" TriggerValue=");
+            Serial.print(F(" TriggerValue="));
             Serial.print(tTriggerValue);
-            Serial.print(" PeriodCount=");
+            Serial.print(F(" PeriodCount="));
             Serial.print(FrequencyDetectorControl.PeriodCountActual);
-            Serial.print(" Samples=");
+            Serial.print(F(" Samples="));
             Serial.print(FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition);
-            Serial.print(" Freq=");
+            Serial.print(F(" Freq="));
             Serial.println(FrequencyDetectorControl.FrequencyActual);
 #endif
-            tRetval = FrequencyDetectorControl.FrequencyActual;
         }
     }
-    return tRetval;
-//    return FrequencyDetectorControl.FrequencyActual;
+    return FrequencyDetectorControl.FrequencyActual;
 }
 
 /** Overwrite FrequencyDetectorControl.FrequencyActual with these error values if plausibility check fails:
- *      SIGNAL_FIRST_PLAUSI_FAILED 1
- *      SIGNAL_DISTRIBUTION_PLAUSI_FAILED 2
+ *      SIGNAL_FIRST_PLAUSI_FAILED 2
+ *      SIGNAL_DISTRIBUTION_PLAUSI_FAILED 3
  * Used plausibility rules are:
  * 1. A trigger must be detected in first and last 1/8 of samples
  * 2. Only 1/8 of the samples are allowed to be greater than 1.5 or less than 0.75 of the average period
  * @return the (changed) FrequencyDetectorControl.FrequencyActual
  */
 uint16_t doPlausi() {
-    if (FrequencyDetectorControl.FrequencyActual > SIGNAL_MAX_ERROR_CODE) {
+    if (FrequencyDetectorControl.FrequencyActual > SIGNAL_STRENGTH_LOW) {
         /*
          * plausibility check
          */
@@ -374,11 +356,11 @@ uint16_t doPlausi() {
             }
 #ifdef TRACE
             Serial.print(tErrorCount);
-            Serial.print("  #=");
+            Serial.print(F("  #="));
             Serial.print(tPeriodCountActual);
-            Serial.print("  F=");
+            Serial.print(F("  F="));
             Serial.print(FrequencyDetectorControl.FrequencyActual);
-            Serial.println("Hz");
+            Serial.println(F("Hz"));
 
 #endif
         }
@@ -397,7 +379,7 @@ uint16_t LowPassFilterWith16Values(uint16_t aFilteredValue, uint16_t aValue) {
  * handles dropouts / no signal
  * dropout count is between 0 and MaxMatchDropoutCount and on latter the match will be reseted.
  * determine direct match state - FrequencyDetectorControl.FrequencyMatch
- * computes low-pass filtered match state - FrequencyDetectorControl.FrequencyMatchFiltered
+ * computes low-pass filtered match state FrequencyMatchFiltered and frequency FrequencyMatchFiltered
  */
 void computeDirectAndFilteredMatch(uint16_t aFrequency) {
 
@@ -421,10 +403,14 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
             }
         }
     } else {
-        // decrement dropout count until 0
+        /*
+         * Valid signal
+         * decrement dropout count until 0
+         */
         if (FrequencyDetectorControl.MatchDropoutCount > 0) {
             FrequencyDetectorControl.MatchDropoutCount--;
         }
+
         /*
          * Determine direct match state and tNewFilterValue for low pass filter
          */
@@ -451,6 +437,9 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
             FrequencyDetectorControl.MatchLowPassFiltered = tNewFilterValue;
             FrequencyDetectorControl.FrequencyFiltered = aFrequency;
         } else if (FrequencyDetectorControl.MatchDropoutCount < FrequencyDetectorControl.MaxMatchDropoutCount) {
+            /*
+             * Low pass filter the frequency and the match
+             */
             FrequencyDetectorControl.FrequencyFiltered = LowPassFilterWith16Values(FrequencyDetectorControl.FrequencyFiltered,
                     aFrequency);
             FrequencyDetectorControl.MatchLowPassFiltered = LowPassFilterWith16Values(FrequencyDetectorControl.MatchLowPassFiltered,
@@ -461,6 +450,7 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
          * determine new low pass filtered match state
          */
         if (FrequencyDetectorControl.MatchDropoutCount > FrequencyDetectorControl.MaxMatchDropoutCount) {
+            // too much dropouts
             FrequencyDetectorControl.FrequencyMatchFiltered = FREQUENCY_MATCH_INVALID;
         } else {
             if (FrequencyDetectorControl.MatchLowPassFiltered > FILTER_VALUE_MATCH_HIGHER_THRESHOLD) {
