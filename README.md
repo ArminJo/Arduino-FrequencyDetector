@@ -7,8 +7,8 @@ Youtube video of whistle switch example in action.
 
 [![Demonstration of 3 whistle switches](https://i.ytimg.com/vi/_e2mElB8zJs/hqdefault.jpg)](https://www.youtube.com/watch?v=_e2mElB8zJs)
 
-# Download
-The actual version can be downloaded directly from GitHub [here](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/FrequencyDetector.zip?raw=true)
+## Installation
+Use the GitHub *clone or download -> Download ZIP* button, and add the .zip file with *Sketch -> Include Library -> add .ZIP Library...*. 
 
 # Internal operation
 This library analyzes a (microphone) signal and outputs the detected frequency. It simply counts zero crossings and **it does do not use FFT**.
