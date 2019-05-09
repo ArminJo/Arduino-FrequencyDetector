@@ -89,7 +89,7 @@ void setup() {
 
 void loop() {
     /*
-     * Read samples and compute and output frequency ond doe plausi.
+     * Read samples and compute and output frequency one doe plausi.
      */
     uint16_t tFrequency = readSignal();
     tFrequency = doPlausi();
