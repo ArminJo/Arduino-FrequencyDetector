@@ -377,7 +377,7 @@ uint16_t LowPassFilterWith16Values(uint16_t aFilteredValue, uint16_t aValue) {
 
 /**
  * handles dropouts / no signal
- * dropout count is between 0 and MaxMatchDropoutCount and on latter the match will be reseted.
+ * dropout count is between 0 and MaxMatchDropoutCount and on latter the match will be reset.
  * determine direct match state - FrequencyDetectorControl.FrequencyMatch
  * computes low-pass filtered match state FrequencyMatchFiltered and frequency FrequencyMatchFiltered
  */
