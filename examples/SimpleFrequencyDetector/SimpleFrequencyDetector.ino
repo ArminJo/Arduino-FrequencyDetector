@@ -26,18 +26,18 @@
  */
 
 /*
- *      + 5V / 3.3V           o--O PIN REF
+ *      + 5 V / 3.3 V         o--O PIN REF
  *      |                     |
  *      |                     _
  *      |                    | |
- * MAX4466 / 9814 MICROPHONE | | 1M
+ * MAX4466 / 9814 MICROPHONE | | 1 M
  *  AMPLIFIER / MODULE       |_|
  *      |                     |
  *     |O ---------||---------o--O PIN A1
- *      |         10nF        |
+ *      |         10 nF       |
  *      |                     _
  *      |                    | |
- *      |                    | | 1M
+ *      |                    | | 1 M
  *     ___                   |_|
  *                            |
  *                            |

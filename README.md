@@ -2,8 +2,9 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector.svg?branch=master)](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector)
+[![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FArduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
 
-Youtube video of whistle switch example in action.
+YouTube video of whistle switch example in action.
 
 [![Demonstration of 3 whistle switches](https://i.ytimg.com/vi/_e2mElB8zJs/hqdefault.jpg)](https://www.youtube.com/watch?v=_e2mElB8zJs)
 
@@ -31,11 +32,11 @@ and also low pass filters the result for smooth transitions between the 3 match 
 This example reads analog signal e.g. from MAX9814 Module at A1 and computes the frequency.
 If frequency is in the range of 1400 to 1700 Hz, the Arduino builtin LED will light up.
 It prints the detected frequency as well as plausibility errors.
-For frequency below 400Hz it might be good to change PRESCALE_VALUE_DEFAULT to PRESCALE128.
+For frequency below 400 Hz it might be good to change PRESCALE_VALUE_DEFAULT to PRESCALE128.
 
 SimpleFrequencyDetector on breadboard with MAX9814 Module
 ![SimpleFrequencyDetector on breadboard with MAX9814 Module](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/SimpleFrequencyDetector_MAX9814.jpg)
-Youtube Demonstration of SimpleFrequencyDetector with MAX9812 Module
+YouTube Demonstration of SimpleFrequencyDetector with MAX9812 Module
 
 [![Demonstration of SimpleFrequencyDetector](https://img.youtube.com/vi/tsxfSx0iY5s/0.jpg)](https://www.youtube.com/watch?v=tsxfSx0iY5s)
  
@@ -53,7 +54,7 @@ Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second
 The setting is stored in EEPROM. Default is TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2 (8 hours).
 
 
-**This example is mainly created to run on an ATtiny85 @1MHz, but will work also on a plain Arduino.**
+**This example is mainly created to run on an ATtiny85 at 1 MHz, but will work also on a plain Arduino.**
 
 ## PREDEFINED RANGES
 the following pitch ranges are predefined for easy selection:
@@ -150,3 +151,5 @@ The FrequencyDetector library examples are built on Travis CI for the following 
 
 - Arduino Uno
 - Adafruit Trinket (using ATTiny85)
+
+#### If you find this library useful, please give it a star.

@@ -90,7 +90,7 @@
  *  Button state change is handled by an InterruptServiceRoutine
  *
  * FUSE VALUES for Tiny85 -> Enable BOD, run with 1 MHz
- * Low=0X62 (default) Int RC Osc. 8 MHz divided by 8. 14 Clk + 64ms startup.
+ * Low=0X62 (default) Int RC Osc. 8 MHz divided by 8. 14 Clk + 64 ms startup.
  * High=0XDC BrowOut at VCC=4.3Volt
  * Extended=0XFF
  *
@@ -777,9 +777,8 @@ void signalTimeoutByLed() {
  * Setup section
  *******************************************************************************************/
 void setup() {
-
-    /* Clear WDT flags in MCUSR */
-    MCUSR = ~_BV(WDRF);
+    uint8_t tMCUSRStored = MCUSR; // content of MCUSR register at startup
+    MCUSR = 0; // to prepare for next reset or power on
 
     /*
      * For Arduinos with other than optiboot bootloader wdt_disable() comes too late here, since after reset the watchdog is still enabled
@@ -804,7 +803,8 @@ void setup() {
             pinMode(TIMING_PIN, OUTPUT);
 #endif
     // Just to know which program is running on my Arduino
-    Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
+    Serial.print(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__"\nMCUSR=0x"));
+    Serial.println(tMCUSRStored, HEX);
 
     pinMode(LED_FEEDBACK, OUTPUT);
     pinMode(RELAY_OUT, OUTPUT);
@@ -1003,7 +1003,7 @@ void detectFrequency() {
     /*
      * Read signal and get frequency
      *
-     * readSignal() needs 26,6 ms for one loop at attiny85 1MHz
+     * readSignal() needs 26,6 ms for one loop at attiny85 1 MHz
      * Remaining of loop needs 260 cycles, but with debug output at 115200Baud it needs 7500 cycles.
      */
 #ifdef MEASURE_TIMING

@@ -26,6 +26,10 @@
 #ifndef FREQUENCYDETECTOR_H_
 #define FREQUENCYDETECTOR_H_
 
+//#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
+#define FREQUENCY_RANGE_DEFAULT
+//#define FREQUENCY_RANGE_HIGH // // use it for frequencies above approximately 3000 Hz
+
 // Propagate debug level
 #ifdef TRACE
 #define DEBUG
@@ -45,15 +49,14 @@
  */
 /*
  * Number of samples used for detecting the frequency of the signal.
- * 1024 -> 53.248 milliseconds / 18.78 Hz at 16 MHz clock with prescaler 64 and 13 cycles/sample (=> 52usec/sample | 19230 Hz sample rate)
- *  For frequency below 400Hz it might be good to change PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
- *  1024 -> 106.496 milliseconds / 9.39 Hz at 16 MHz clock with prescaler 128 and 13 cycles/sample (=> 104usec/sample | 9615 Hz sample rate)
- *
- *  512 -> 26.624 milliseconds / 37.56 Hz at  1 MHz clock with prescaler  4 and 13 cycles/sample (=> 52usec/sample | 19230 Hz sample rate)
+ * 16 MHz clock with prescaler 64: 1024 -> 53.248 milliseconds / 18.78 Hz. With 13 cycles/sample (=> 52 usec/sample | 19230 Hz sample rate)
+ * 1 MHz clock with prescaler 4: 512 -> 26.624 milliseconds / 37.56 Hz.    With 13 cycles/sample (=> 52 usec/sample | 19230 Hz sample rate)
+ * 16 MHz clock with prescaler 128: 1024 -> 106.496 milliseconds / 9.39 Hz. With 13 cycles/sample (=> 104 usec/sample | 9615 Hz sample rate)
+ * 16 MHz clock with prescaler 16: 1024 -> 13.312 milliseconds / 75.12 Hz. With 13 cycles/sample (=> 13 usec/sample | 76923 Hz sample rate)
  *
  */
 #if defined(__AVR_ATtiny85__)
-#define NUMBER_OF_SAMPLES 512
+#define NUMBER_OF_SAMPLES 256 // because of low SRAM
 #else
 #define NUMBER_OF_SAMPLES 1024
 #endif
@@ -67,7 +70,7 @@
 /*
  * Defaults for plausibility
  */
-#define MIN_SAMPLES_PER_PERIOD 8   // => Max frequency is 2403 Hz at 52usec/sample
+#define MIN_SAMPLES_PER_PERIOD 8   // => Max frequency is 2403 Hz at 52 usec/sample, 9612 Hz at 13 usec/sample
 // Fixed values for plausibility
 #define LEADING_TRAILING_TRIGGER_MARGIN (NUMBER_OF_SAMPLES / 8) // Margin for doPlausi() where at least one trigger (eg. TriggerFirstPosition) must be detected
 #define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_SAMPLES / MIN_SAMPLES_PER_PERIOD)
@@ -78,17 +81,19 @@
 #define FREQUENCY_MIN_DEFAULT 1000
 #define FREQUENCY_MAX_DEFAULT 2000
 
-#if NUMBER_OF_SAMPLES == 512
-// 6 -> 160 milliseconds for 512 samples
-#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 8   // 212ms
+#if NUMBER_OF_SAMPLES == 256
+#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 16   // 212 ms milliseconds for 256 samples
+#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 12        // - to avoid short flashes at random signal input
+#elif NUMBER_OF_SAMPLES == 512
+#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 8   // 212 ms milliseconds for 512 samples
 #define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 12        // - to avoid short flashes at random signal input
 #else
-// 3 -> 160 milliseconds for 1024 samples at 52usec/sample
+// 3 -> 160 milliseconds for 1024 samples at 52 usec/sample
 #define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 3 // number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
 #define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 6 // number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
 #endif
 
-// sample time values for Prescaler for 16 MHz 4(13*0,25=3,25us), 8(6,5us), 16(13us), 32(26us), 64(52us), 128(104us)
+// sample time values for Prescaler for 16 MHz 4(13*0,25=3,25 us), 8(6,5 us), 16(13 us), 32(26 us), 64(52 us), 128(104 us)
 #define ADC_PRESCALE2    1
 #define ADC_PRESCALE4    2
 #define ADC_PRESCALE8    3
@@ -100,15 +105,33 @@
 /*
  * Default timing for reading -> 19,23 kHz sample rate
  * Formula is F_CPU / (PrescaleFactor * 13)
- * For frequency below 400Hz it might be good to increase PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
- * For frequencies above 3kHz it might be good to decrease PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE32 or even lower.
+ * For frequency below 400 Hz it might be good to increase PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
+ * For frequencies above 3 kHz it might be good to decrease PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE32 or even lower.
  */
+#if defined(FREQUENCY_RANGE_DEFAULT)
 #if F_CPU == 16000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 52 microseconds per ADC sample at 16 Mhz Clock => 19,23kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 52 microseconds per ADC sample at 16 Mhz Clock => 19.23 kHz sample rate
 #elif F_CPU == 8000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE32 // 52 microseconds per ADC sample at 8 Mhz Clock => 19,23kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE32 // 52 microseconds per ADC sample at 8 Mhz Clock => 19.23 kHz sample rate
 #elif F_CPU == 1000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE4 // 52 microseconds per ADC sample at 1 Mhz Clock => 19,23kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE4 // 52 microseconds per ADC sample at 1 Mhz Clock => 19.23 kHz sample rate
+#endif
+#elif defined(FREQUENCY_RANGE_LOW)
+#if F_CPU == 16000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE128 // 104 microseconds per ADC sample at 16 Mhz Clock => 9.615 kHz sample rate
+#elif F_CPU == 8000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 104 microseconds per ADC sample at 8 Mhz Clock => 9.615 kHz sample rate
+#elif F_CPU == 1000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 104 microseconds per ADC sample at 1 Mhz Clock => 9.615 kHz sample rate
+#endif
+#elif defined(FREQUENCY_RANGE_HIGH)
+#if F_CPU == 16000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE16 // 13 microseconds per ADC sample at 16 Mhz Clock => 76.923 kHz sample rate
+#elif F_CPU == 8000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 13 microseconds per ADC sample at 8 Mhz Clock => 76.923 kHz sample rate
+#elif F_CPU == 1000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE1 // 13 microseconds per ADC sample at 1 Mhz Clock => 76.923 kHz sample rate
+#endif
 #endif
 
 /*
@@ -170,8 +193,9 @@ struct FrequencyDetectorControlStruct {
     /*
      * Value set by setFrequencyDetectorReadingValues()
      * Minimum signal strength value to produce valid output and do new trigger level computation. Otherwise return SIGNAL_STRENGTH_LOW
+     * Threshold for minimum SignalDelta of raw ADC value for valid signal strength. 0x40=312mV at 5 Volt and 68.75 mVolt at 1.1 Volt, 0x20=156/34,37 mVolt
      */
-    uint16_t RawVoltageMinDelta; // Threshold for minimum SignalDelta of raw ADC value for valid signal strength. 0x40=312mV at 5V and 68.75mY at 1.1V, 0x20=156/34,37 mVolt
+    uint16_t RawVoltageMinDelta;
 
     // INTERNALLY
     /*

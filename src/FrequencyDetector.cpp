@@ -77,7 +77,7 @@ union Myword {
  ***************************************************************/
 /*
  * aADCChannel can be 0 to 7 or A0 to A7
- * aADCReference can be DEFAULT (VCC) or INTERNAL (1.1V)
+ * aADCReference can be DEFAULT (VCC) or INTERNAL (1.1 Volt)
  * aADCPrescalerValue can be one of PRESCALE4, PRESCALE8, PRESCALE32, PRESCALE64 or PRESCALE128
  * aFrequencyOfOneSampleTimes100 depends on value of aADCPrescalerValue
  * Formula is
@@ -133,7 +133,7 @@ void setFrequencyDetectorControlDefaults() {
 void setFrequencyDetectorReadingDefaults() {
     // for DC coupled signal
     setFrequencyDetectorReadingValues(ADC_CHANNEL_DEFAULT, DEFAULT, PRESCALE_VALUE_DEFAULT, RAW_VOLTAGE_MIN_DELTA_DEFAULT);
-    // set reference to 1.1Volt for AC coupled signal - is equivalent to an additional signal amplification of around 4
+    // set reference to 1.1 Volt for AC coupled signal - is equivalent to an additional signal amplification of around 4
     //setFrequencyDetectorReadingValues(ADC_CHANNEL_DEFAULT, INTERNAL1V1, PRESCALE_VALUE_DEFAULT, RAW_VOLTAGE_MIN_DELTA_DEFAULT);
 }
 
@@ -153,14 +153,14 @@ void setFrequencyDetectorReadingDefaults() {
  * - FrequencyDetectorControl.TriggerLastPosition
  * Triggering value for next reading, trigger hysteresis is 1/8 peak to peak value
  *
- * !!! timer0 interrupt, which counts the milliseconds is disabled during reading!!!
+ * !!! Timer0 interrupt, which counts the milliseconds is disabled during reading!!!
  * The alternative of using disable interrupt is worse!!!
  * The value of millis() is adjusted manually after reading.
  */
 uint16_t readSignal() {
     Myword tUValue;
     /*
-     * disable timer 0 (millis()) overflow interrupt
+     * disable Timer0 (millis()) overflow interrupt
      * since the loop last exactly a multiple of 1024 micros, add a few statements between disabling and enabling
      */
 #if defined(TIMSK) && defined(TOIE0)
