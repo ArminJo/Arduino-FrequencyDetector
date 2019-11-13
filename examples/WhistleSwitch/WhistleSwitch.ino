@@ -213,7 +213,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 /*
  * Attiny85
  */
-#include "TinySerialOut.h"
+#include "ATtinySerialOut.h"
 
 #define BUTTON_PIN 3
 
@@ -791,8 +791,9 @@ void setup() {
     delay(2); // to wait for serial line to settle / stop bit
 #else
             Serial.begin(115200);
-            while (!Serial)
-            ; //delay for Leonardo
+#if defined(__AVR_ATmega32U4__)
+            while (!Serial); //delay for Leonardo, but this loops forever for Maple Serial
+#endif
 
             pinMode(LED_LOWER, OUTPUT);
             pinMode(LED_MATCH, OUTPUT);

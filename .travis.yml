@@ -32,15 +32,11 @@ before_install:
 # parameter is needed :-(
 - arduino-cli core update-index
 - echo "Install board..."
-#- if [[ "$BOARD" =~ "arduino:avr:" ]]; then
-#      arduino-cli core install arduino:avr;
-#  fi
 # parameter is needed :-(
 - arduino-cli core install arduino:avr
 - arduino-cli core install ATTinyCore:avr
-- echo "Show all boards now available..."
-- arduino-cli board listall
-#- buildExampleSketch() { arduino-cli compile --warnings all --fqbn $BOARD $PWD/examples/$1; }
+#- echo "Show all boards now available..."
+#- arduino-cli board listall
 install:
 - mkdir -p $HOME/Arduino/libraries
 - ln -s $PWD $HOME/Arduino/libraries/.

@@ -59,14 +59,15 @@
 #include "FrequencyDetector.h"
 
 void setup() {
-// initialize the digital pin as an output.
     pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
-    while (!Serial)
-        ; //delay for Leonardo
+#if defined(__AVR_ATmega32U4__)
+    while (!Serial); //delay for Leonardo, but this loops forever for Maple Serial
+#endif
     // Just to know which program is running on my Arduino
     Serial.println(F("START " __FILE__ "\r\nVersion " VERSION_EXAMPLE " from " __DATE__));
 
+    // initialize the digital pin as an output.
     pinMode(LED_PLAUSI_FIRST, OUTPUT);
     pinMode(LED_PLAUSI_DISTRIBUTION, OUTPUT);
     pinMode(LED_SIGNAL_STRENGTH, OUTPUT);

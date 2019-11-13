@@ -36,7 +36,7 @@
 #include <Arduino.h>
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-#include "TinySerialOut.h"
+#include "ATtinySerialOut.h"
 #endif
 
 //#define INFO
@@ -77,7 +77,7 @@ union Myword {
  ***************************************************************/
 /*
  * aADCChannel can be 0 to 7 or A0 to A7
- * aADCReference can be DEFAULT (VCC) or INTERNAL (1.1 Volt)
+ * aADCReference can be DEFAULT (VCC) or INTERNAL (1.1 volt)
  * aADCPrescalerValue can be one of PRESCALE4, PRESCALE8, PRESCALE32, PRESCALE64 or PRESCALE128
  * aFrequencyOfOneSampleTimes100 depends on value of aADCPrescalerValue
  * Formula is
@@ -133,7 +133,7 @@ void setFrequencyDetectorControlDefaults() {
 void setFrequencyDetectorReadingDefaults() {
     // for DC coupled signal
     setFrequencyDetectorReadingValues(ADC_CHANNEL_DEFAULT, DEFAULT, PRESCALE_VALUE_DEFAULT, RAW_VOLTAGE_MIN_DELTA_DEFAULT);
-    // set reference to 1.1 Volt for AC coupled signal - is equivalent to an additional signal amplification of around 4
+    // set reference to 1.1 volt for AC coupled signal - is equivalent to an additional signal amplification of around 4
     //setFrequencyDetectorReadingValues(ADC_CHANNEL_DEFAULT, INTERNAL1V1, PRESCALE_VALUE_DEFAULT, RAW_VOLTAGE_MIN_DELTA_DEFAULT);
 }
 

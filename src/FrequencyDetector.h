@@ -28,7 +28,7 @@
 
 //#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
 #define FREQUENCY_RANGE_DEFAULT
-//#define FREQUENCY_RANGE_HIGH // // use it for frequencies above approximately 3000 Hz
+//#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 3000 Hz
 
 // Propagate debug level
 #ifdef TRACE
@@ -193,7 +193,7 @@ struct FrequencyDetectorControlStruct {
     /*
      * Value set by setFrequencyDetectorReadingValues()
      * Minimum signal strength value to produce valid output and do new trigger level computation. Otherwise return SIGNAL_STRENGTH_LOW
-     * Threshold for minimum SignalDelta of raw ADC value for valid signal strength. 0x40=312mV at 5 Volt and 68.75 mVolt at 1.1 Volt, 0x20=156/34,37 mVolt
+     * Threshold for minimum SignalDelta of raw ADC value for valid signal strength. 0x40=312 mV at 5 millivolt and 68.75 mVolt at 1.1 volt, 0x20=156/34,37 millivolt
      */
     uint16_t RawVoltageMinDelta;
 
