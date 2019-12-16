@@ -1,5 +1,5 @@
 /*
- * TinySerialOut.cpp
+ * ATtinySerialOut.cpp
  *
  * For transmitting debug data over bit bang serial with 115200 baud for 1/8/16 MHz ATtiny clock.
  * For 1 MHz you can choose also 38400 baud (120 bytes smaller code size).
@@ -12,7 +12,7 @@
  * Using the Serial.print commands needs 4 bytes extra for each call.
  *
  *
- *  Copyright (C) 2015-2018  Armin Joachimsmeyer
+ *  Copyright (C) 2015-2019  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of TinySerialOut https://github.com/ArminJo/ATtinySerialOut.
@@ -370,6 +370,16 @@ void TinySerialOut::print(double aFloat, uint8_t aDigits) {
     writeStringSkipLeadingSpaces(tStringBuffer);
 }
 
+char nibbleToHex(uint8_t aByte) {
+    aByte = aByte & 0x0F;
+    if (aByte < 10) {
+        return aByte + '0';
+    }
+    return aByte + 'A' - 10;
+}
+
+
+
 /*
  * 2 Byte Hex output with 2 Byte prefix "0x"
  */
@@ -377,13 +387,15 @@ void TinySerialOut::printHex(uint8_t aByte) {
     char tStringBuffer[5];
     tStringBuffer[0] = '0';
     tStringBuffer[1] = 'x';
-    utoa(aByte, &tStringBuffer[2], 16);
-    if (tStringBuffer[3] == '\0') {
-        tStringBuffer[4] = '\0';
-        tStringBuffer[3] = tStringBuffer[2];
-        tStringBuffer[2] = '0';
-    }
+    tStringBuffer[2] = nibbleToHex(aByte >> 4);
+    tStringBuffer[3] = nibbleToHex(aByte);
+    tStringBuffer[4] = '\0';
     writeString(tStringBuffer);
+}
+
+void TinySerialOut::printlnHex(uint8_t aByte) {
+    printHex(aByte);
+    print('\n');
 }
 
 void TinySerialOut::println(const char* aStringPtr) {
@@ -654,7 +666,7 @@ void write1Start8Data1StopNoParity(uint8_t aValue) {
 
             // Start of loop
             // if (aValue & 0x01) {
-            "loop:"
+            "txloop:"
             "sbrs %[value] , 0" "\n\t"// 1
             "rjmp .+6" "\n\t"// 2
 
@@ -697,7 +709,7 @@ void write1Start8Data1StopNoParity(uint8_t aValue) {
 
             // }while (i > 0);
             "subi r25 , 0x01" "\n\t"// 1
-            "brne loop" "\n\t"// 1-2
+            "brne txloop" "\n\t"// 1-2
             // To compensate for missing loop cycles at last bit
             "nop" "\n\t"// 1
             "nop" "\n\t"// 1
@@ -751,12 +763,12 @@ void write1Start8Data1StopNoParity_C_Version(uint8_t aValue) {
     /*
      * C Version here for 38400 baud at 1 MHz Clock. You see, it is simple :-)
      */
-    // start bit
+// start bit
     TX_PORT &= ~(1 << TX_PIN);
     _NOP();
     delay4CyclesInlineExact(4);
 
-    // 8 data bits
+// 8 data bits
     uint8_t i = 8;
     do {
         if (aValue & 0x01) {
@@ -780,15 +792,15 @@ void write1Start8Data1StopNoParity_C_Version(uint8_t aValue) {
         --i;
     } while (i > 0);
 
-    // to compensate for missing loop cycles at last bit
+// to compensate for missing loop cycles at last bit
     _NOP();
     _NOP();
     _NOP();
     _NOP();
 
-    // Stop bit
+// Stop bit
     TX_PORT |= 1 << TX_PIN;
-    // -8 cycles to compensate for fastest repeated call (1 ret + 1 load + 1 call)
+// -8 cycles to compensate for fastest repeated call (1 ret + 1 load + 1 call)
     delay4CyclesInlineExact(4); // gives minimum 25 cycles for stop bit :-)
 }
 #endif // defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)

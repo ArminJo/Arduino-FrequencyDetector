@@ -56,6 +56,10 @@
 
 #define ARDUINO_PLOTTER
 
+#if ! defined(LED_BUILTIN) && defined(ARDUINO_AVR_DIGISPARK)
+#define LED_BUILTIN PB1
+#endif
+
 #include "FrequencyDetector.h"
 
 void setup() {
