@@ -41,13 +41,13 @@
 
 #include <Arduino.h>
 
-#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-#include "ATtinySerialOut.h"
-#endif
-
 //#define INFO
 //#define DEBUG
 //#define TRACE
+
+#if (defined(INFO) || defined(DEBUG) || defined(TRACE)) && (defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__))
+#include "ATtinySerialOut.h"
+#endif
 
 #include "FrequencyDetector.h"
 
@@ -146,7 +146,8 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
                 / FrequencyDetectorControl.PeriodOfOneReadingMillis;
         FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutMillis / FrequencyDetectorControl.PeriodOfOneReadingMillis;
         // set initial to maximum dropouts
-        FrequencyDetectorControl.MatchDropoutCount = FrequencyDetectorControl.MinMatchNODropoutCount + FrequencyDetectorControl.MaxMatchDropoutCount;
+        FrequencyDetectorControl.MatchDropoutCount = FrequencyDetectorControl.MinMatchNODropoutCount
+                + FrequencyDetectorControl.MaxMatchDropoutCount;
 
         tRetval = true;
     } else {
@@ -203,7 +204,7 @@ uint16_t readSignal() {
      */
 #if defined(ARDUINO_AVR_DIGISPARK)
     // Digispark uses timer1 for millis()
-        cbi(TIMSK, TOIE1);
+    cbi(TIMSK, TOIE1);
 #else
 #  if defined(TIMSK) && defined(TOIE0)
     cbi(TIMSK, TOIE0);
