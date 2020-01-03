@@ -2,6 +2,12 @@
  * FrequencyDetector.cpp
  *
  * Analyzes a microphone signal and outputs the detected frequency. It simply counts zero crossings and do not use FFT.
+ * The ADC sample data is NOT stored in RAM, only the period lengths are stored in the PeriodLength[] array,
+ * which is a byte array and has the size of NUMBER_OF_SAMPLES / 8.
+ *
+ * The timer 0 interrupt, which counts the milliseconds, is disabled during reading and enabled afterwards!
+ * The value of millis() is adjusted after reading.
+ * The alternative to disabling the interrupt is getting partially invalid results!
  *
  *  Copyright (C) 2014  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
@@ -104,6 +110,8 @@ void setFrequencyDetectorReadingPrescaleValue(uint8_t aADCPrescalerValue) {
     FrequencyDetectorControl.ADCPrescalerValue = aADCPrescalerValue;
     //Formula is F_CPU / (PrescaleFactor * 13)
     FrequencyDetectorControl.PeriodOfOneSampleMicros = ((1 << aADCPrescalerValue) * 13) / (F_CPU / 1000000L);
+    FrequencyDetectorControl.PeriodOfOneReadingMillis = ((FrequencyDetectorControl.PeriodOfOneSampleMicros
+            * (uint32_t) NUMBER_OF_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP) / 1000;
     uint32_t tFrequencyOfOneSample = 1000000L / FrequencyDetectorControl.PeriodOfOneSampleMicros;
     FrequencyDetectorControl.FrequencyOfOneSample = tFrequencyOfOneSample;
 
@@ -119,14 +127,40 @@ void setFrequencyDetectorMatchValues(uint16_t aFrequencyMin, uint16_t aFrequency
     FrequencyDetectorControl.FrequencyMatchHigh = aFrequencyMax;
 }
 
-void setFrequencyDetectorDropoutValues(uint8_t aMinMatchNODropoutCount, uint8_t aMaxMatchDropoutCount) {
+void setFrequencyDetectorDropoutCounts(uint8_t aMinMatchNODropoutCount, uint8_t aMaxMatchDropoutCount) {
     FrequencyDetectorControl.MinMatchNODropoutCount = aMinMatchNODropoutCount;
     FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutCount;
 }
 
+/*
+ * Computes MinMatchNODropoutCount and MaxMatchDropoutCount.
+ * If program size matters, use setFrequencyDetectorDropoutCounts() instead or set them directly.
+ * @return true if values set, false if PeriodOfOneReadingMillis == 0
+ */
+bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_t aMaxMatchDropoutMillis) {
+    bool tRetval = false;
+    if (FrequencyDetectorControl.PeriodOfOneReadingMillis != 0) {
+        FrequencyDetectorControl.MinMatchNODropoutCount = aMinMatchNODropoutMillis
+                / FrequencyDetectorControl.PeriodOfOneReadingMillis;
+        FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutMillis / FrequencyDetectorControl.PeriodOfOneReadingMillis;
+        tRetval = true;
+    } else{
+#ifdef INFO
+    Serial.println(F("Error. Values not set! Must call setFrequencyDetectorReadingPrescaleValue() before!"));
+#endif
+    }
+#ifdef INFO
+    Serial.print(F("MinMatchNODropoutCount="));
+    Serial.print(FrequencyDetectorControl.MinMatchNODropoutCount);
+    Serial.print(F(" MaxMatchDropoutCount="));
+    Serial.println(FrequencyDetectorControl.MaxMatchDropoutCount);
+#endif
+    return tRetval;
+}
+
 void setFrequencyDetectorControlDefaults() {
     setFrequencyDetectorMatchValues(FREQUENCY_MIN_DEFAULT, FREQUENCY_MAX_DEFAULT);
-    setFrequencyDetectorDropoutValues(MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT,
+    setFrequencyDetectorDropoutCounts(MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT,
     MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT);
 }
 
@@ -153,23 +187,27 @@ void setFrequencyDetectorReadingDefaults() {
  * - FrequencyDetectorControl.TriggerLastPosition
  * Triggering value for next reading, trigger hysteresis is 1/8 peak to peak value
  *
- * !!! Timer0 interrupt, which counts the milliseconds is disabled during reading!!!
- * The alternative of using disable interrupt is worse!!!
+ * !!! Timer0 interrupt, which counts the milliseconds is disabled during reading and enabled afterwards!!!
+ * The alternative of using disable interrupt is getting wrong results!!!
  * The value of millis() is adjusted manually after reading.
  */
 uint16_t readSignal() {
     Myword tUValue;
     /*
      * disable Timer0 (millis()) overflow interrupt
-     * since the loop last exactly a multiple of 1024 micros, add a few statements between disabling and enabling
      */
-#if defined(TIMSK) && defined(TOIE0)
-    cbi(TIMSK, TOIE0);
-#elif defined(TIMSK0) && defined(TOIE0)
-    cbi(TIMSK0, TOIE0);
+#if defined(ARDUINO_AVR_DIGISPARK)
+    // Digispark uses timer1 for millis()
+        cbi(TIMSK, TOIE1);
 #else
-#error  Timer 0 overflow interrupt not set correctly
-#endif
+#  if defined(TIMSK) && defined(TOIE0)
+    cbi(TIMSK, TOIE0);
+#  elif defined(TIMSK0) && defined(TOIE0)
+    cbi(TIMSK0, TOIE0);
+#  else
+#error  Timer 0 overflow interrupt not disabled correctly
+#  endif
+#endif // defined(ARDUINO_AVR_DIGISPARK)
 
 //  ADCSRB = 0; // free running mode  - is default
     ADCSRA = ((1 << ADEN) | (1 << ADSC) | (1 << ADATE) | (1 << ADIF) | FrequencyDetectorControl.ADCPrescalerValue);
@@ -189,7 +227,7 @@ uint16_t readSignal() {
      * Read 512/1024 samples
      */
     for (uint16_t i = 0; i < NUMBER_OF_SAMPLES; i++) {
-        // loop takes 22 cycles and we have 52 cycles between each conversion :-)
+        // loop takes 22 cycles and we have 52 cycles @1MHz between each conversion :-)
         /*
          * wait for free running conversion to finish.
          * Do not wait for ADSC here, since ADSC is only low for 1 ADC Clock cycle on free running conversion.
@@ -238,7 +276,7 @@ uint16_t readSignal() {
         }
     }
 
-    ADCSRA &= ~(1 << ADATE); // Disable auto-triggering
+    ADCSRA &= ~(1 << ADATE); // Disable ADC auto-triggering
 
     FrequencyDetectorControl.AverageLevel = tSumOfSampleValues / NUMBER_OF_SAMPLES;
     FrequencyDetectorControl.TriggerLastPosition = tPeriodCountPosition;
@@ -251,23 +289,33 @@ uint16_t readSignal() {
     FrequencyDetectorControl.TriggerLevel = tTriggerValue;
 
     /*
-     * enable timer 0 overflow interrupt and compensate for disabled timer, if still disabled. + one for the 625 micros for 512 samples.
+     * Enable timer 0 overflow interrupt and compensate for disabled timer, if still disabled.
+     * We need 625 microseconds for other computations @1MHz.
      */
-#if defined(TIMSK) && defined(TOIE0)
+#if defined(ARDUINO_AVR_DIGISPARK)
+    // Digispark uses timer1 for millis()
+    if ((TIMSK & _BV(TOIE1)) == 0) {
+        // still disabled -> compensate
+        timer0_millis += FrequencyDetectorControl.PeriodOfOneReadingMillis;
+    }
+    sbi(TIMSK, TOIE1);
+#else // defined(ARDUINO_AVR_DIGISPARK)
+#  if defined(TIMSK) && defined(TOIE0)
     if ((TIMSK & _BV(TOIE0)) == 0) {
         // still disabled -> compensate
-        timer0_millis += (26 * (NUMBER_OF_SAMPLES / 512)) + 1;
+        timer0_millis += FrequencyDetectorControl.PeriodOfOneReadingMillis;
     }
     sbi(TIMSK, TOIE0);
-#elif defined(TIMSK0) && defined(TOIE0)
+#  elif defined(TIMSK0) && defined(TOIE0)
     if ((TIMSK0 & _BV(TOIE0)) == 0) {
         // still disabled -> compensate
-        timer0_millis += (26 * (NUMBER_OF_SAMPLES / 512)) + 1;
+        timer0_millis += FrequencyDetectorControl.PeriodOfOneReadingMillis;
     }
     sbi(TIMSK0, TOIE0);
-#else
-#error  Timer 0 overflow interrupt not set correctly
-#endif
+#  else
+#error  Timer 0 overflow interrupt not enabled correctly
+#  endif
+#endif // defined(ARDUINO_AVR_DIGISPARK)
 
     /*
      * check for signal strength
@@ -286,7 +334,7 @@ uint16_t readSignal() {
         } else {
 
             /*
-             * Must use long intermediate value to avoid 16Bit overflow
+             * Must use long intermediate value to avoid 16 Bit overflow
              * (FrequencyDetectorControl.FrequencyOfOneSample / Number of samples) => frequency for one period in number of samples
              */
             FrequencyDetectorControl.FrequencyActual = ((long) tPeriodCountActual * FrequencyDetectorControl.FrequencyOfOneSample)

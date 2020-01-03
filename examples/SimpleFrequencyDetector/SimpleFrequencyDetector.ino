@@ -90,6 +90,10 @@ void setup() {
 
     // set my Frequency range
     setFrequencyDetectorMatchValues(1400, 1700);
+#ifdef INFO
+    Serial.print(F("Free Ram/Stack[bytes]="));
+    Serial.println(getFreeRam());
+#endif
 }
 
 void loop() {

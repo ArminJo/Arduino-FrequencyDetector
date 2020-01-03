@@ -26,6 +26,13 @@
 #ifndef FREQUENCYDETECTOR_H_
 #define FREQUENCYDETECTOR_H_
 
+/*
+ * Version 1.1.0 - 1/2020
+ * - Corrected formula for compensating millis().
+ * - New field PeriodOfOneReadingMillis.
+ * - Now accept dropout values in milliseconds.
+ */
+
 //#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
 #define FREQUENCY_RANGE_DEFAULT
 //#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 3000 Hz
@@ -49,23 +56,13 @@
  */
 /*
  * Number of samples used for detecting the frequency of the signal.
- * 16 MHz clock with prescaler 64: 1024 -> 53.248 milliseconds / 18.78 Hz. With 13 cycles/sample (=> 52 usec/sample | 19230 Hz sample rate)
- * 1 MHz clock with prescaler 4: 512 -> 26.624 milliseconds / 37.56 Hz.    With 13 cycles/sample (=> 52 usec/sample | 19230 Hz sample rate)
- * 16 MHz clock with prescaler 128: 1024 -> 106.496 milliseconds / 9.39 Hz. With 13 cycles/sample (=> 104 usec/sample | 9615 Hz sample rate)
- * 16 MHz clock with prescaler 16: 1024 -> 13.312 milliseconds / 75.12 Hz. With 13 cycles/sample (=> 13 usec/sample | 76923 Hz sample rate)
- *
+ * 1024 16 MHz clock with prescaler 128: 106.496 milliseconds /  9.39 Hz. With 13 cycles/sample (=> 104 usec/sample |  9615 Hz sample rate)
+ * 1024 16 MHz clock with prescaler  64:  53.248 milliseconds / 18.78 Hz. With 13 cycles/sample (=>  52 usec/sample | 19230 Hz sample rate)
+ * 1024 16 MHz clock with prescaler  16:  13.312 milliseconds / 75.12 Hz. With 13 cycles/sample (=>  13 usec/sample | 76923 Hz sample rate)
+ * 512   1 MHz clock with prescaler   4:  26.624 milliseconds / 37.56 Hz. With 13 cycles/sample (=>  52 usec/sample | 19230 Hz sample rate)
  */
-#if defined(__AVR_ATtiny85__)
-#define NUMBER_OF_SAMPLES 256 // because of low SRAM
-#else
-#define NUMBER_OF_SAMPLES 1024
-#endif
-
-/*
- * Defaults for reading
- */
-#define ADC_CHANNEL_DEFAULT 1 // Channel ADC1 (PB2 on ATtiny85)
-#define RAW_VOLTAGE_MIN_DELTA_DEFAULT 0x40 // 1/16 of max amplitude for minimum signal strength
+#define NUMBER_OF_SAMPLES 512
+//#define NUMBER_OF_SAMPLES 1024
 
 /*
  * Defaults for plausibility
@@ -76,22 +73,26 @@
 #define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_SAMPLES / MIN_SAMPLES_PER_PERIOD)
 
 /*
+ * Defaults for reading
+ */
+#define ADC_CHANNEL_DEFAULT 1 // Channel ADC1 (PB2 on ATtiny85)
+#define RAW_VOLTAGE_MIN_DELTA_DEFAULT 0x40 // 1/16 of max amplitude for minimum signal strength
+
+/*
  * Defaults for match
  */
 #define FREQUENCY_MIN_DEFAULT 1000
 #define FREQUENCY_MAX_DEFAULT 2000
 
-#if NUMBER_OF_SAMPLES == 256
-#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 16   // 212 ms milliseconds for 256 samples
-#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 12        // - to avoid short flashes at random signal input
-#elif NUMBER_OF_SAMPLES == 512
-#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 8   // 212 ms milliseconds for 512 samples
-#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 12        // - to avoid short flashes at random signal input
-#else
-// 3 -> 160 milliseconds for 1024 samples at 52 usec/sample
-#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT 3 // number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
-#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT 6 // number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
-#endif
+/*
+ * Milliseconds (converted to number of readings) of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
+ */
+#define MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT 200
+
+/*
+ * Milliseconds (converted to number of readings) of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+ */
+#define MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT 150
 
 // sample time values for Prescaler for 16 MHz 4(13*0,25=3,25 us), 8(6,5 us), 16(13 us), 32(26 us), 64(52 us), 128(104 us)
 #define ADC_PRESCALE2    1
@@ -103,36 +104,48 @@
 #define ADC_PRESCALE128  7
 
 /*
- * Default timing for reading -> 19,23 kHz sample rate
+ * Default timing for reading is 19,23 kHz sample rate.
  * Formula is F_CPU / (PrescaleFactor * 13)
- * For frequency below 400 Hz it might be good to increase PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
- * For frequencies above 3 kHz it might be good to decrease PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE32 or even lower.
+ * For frequency below 400 Hz it might be good to use FREQUENCY_RANGE_LOW to e.g. increase PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
+ * For frequencies above 3 kHz it might be good to use FREQUENCY_RANGE_HIGH to e.g. decrease PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE32 or even lower.
  */
 #if defined(FREQUENCY_RANGE_DEFAULT)
-#if F_CPU == 16000000L
+#  if F_CPU == 16000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 52 microseconds per ADC sample at 16 Mhz Clock => 19.23 kHz sample rate
-#elif F_CPU == 8000000L
+#  elif F_CPU == 8000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE32 // 52 microseconds per ADC sample at 8 Mhz Clock => 19.23 kHz sample rate
-#elif F_CPU == 1000000L
+#  elif F_CPU == 1000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE4 // 52 microseconds per ADC sample at 1 Mhz Clock => 19.23 kHz sample rate
-#endif
+#  endif
+#define MICROS_PER_SAMPLE 52
 #elif defined(FREQUENCY_RANGE_LOW)
-#if F_CPU == 16000000L
+#  if F_CPU == 16000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE128 // 104 microseconds per ADC sample at 16 Mhz Clock => 9.615 kHz sample rate
-#elif F_CPU == 8000000L
+#  elif F_CPU == 8000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 104 microseconds per ADC sample at 8 Mhz Clock => 9.615 kHz sample rate
-#elif F_CPU == 1000000L
+#  elif F_CPU == 1000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 104 microseconds per ADC sample at 1 Mhz Clock => 9.615 kHz sample rate
-#endif
+#  endif
+#define MICROS_PER_SAMPLE 104
 #elif defined(FREQUENCY_RANGE_HIGH)
-#if F_CPU == 16000000L
+#  if F_CPU == 16000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE16 // 13 microseconds per ADC sample at 16 Mhz Clock => 76.923 kHz sample rate
-#elif F_CPU == 8000000L
+#define MICROS_PER_SAMPLE 13
+#  elif F_CPU == 8000000L
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 13 microseconds per ADC sample at 8 Mhz Clock => 76.923 kHz sample rate
-#elif F_CPU == 1000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE1 // 13 microseconds per ADC sample at 1 Mhz Clock => 76.923 kHz sample rate
+#define MICROS_PER_SAMPLE 13
+#  elif F_CPU == 1000000L
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE2 // 26 microseconds per ADC sample at 1 Mhz Clock => 38.461 kHz sample rate
+#define MICROS_PER_SAMPLE 26
+#  endif
 #endif
-#endif
+#define CLOCKS_FOR_READING_NO_LOOP 625 // extra clock cycles outside of the loop for one signal reading. Usefd to compensate millis();
+#define MICROS_PER_BUFFER_READING ((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP)
+
+// number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
+#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT ((MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
+// number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT ((MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
 
 /*
  * storage for millis value to enable compensation for interrupt disable at signal acquisition etc.
@@ -187,8 +200,9 @@ struct FrequencyDetectorControlStruct {
      * 3 Values set by setFrequencyDetectorReadingPrescaleValue()
      */
     uint8_t ADCPrescalerValue;
-    uint16_t FrequencyOfOneSample;    // to compute the frequency from the number of samples of one signal wave
-    uint16_t PeriodOfOneSampleMicros; // to compute the matches needed from the number of loops
+    uint16_t FrequencyOfOneSample;      // to compute the frequency from the number of samples of one signal wave
+    uint16_t PeriodOfOneSampleMicros;   // to compute the matches needed from the number of loops
+    uint16_t PeriodOfOneReadingMillis;  // to correct the millis() value after each reading
 
     /*
      * Value set by setFrequencyDetectorReadingValues()
@@ -216,7 +230,7 @@ struct FrequencyDetectorControlStruct {
      */
     uint16_t FrequencyActual;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doPlausi()
     uint8_t PeriodCountActual; // Actual count of periods in all samples - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1)!!!
-    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi
+    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_SAMPLES / 8
     uint16_t TriggerFirstPosition; // position of first detection of a trigger in all samples
     uint16_t TriggerLastPosition;  // position of last detection of a trigger in all samples
 
@@ -230,7 +244,9 @@ struct FrequencyDetectorControlStruct {
     uint8_t MaxMatchDropoutCount; // number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
     uint8_t MinMatchNODropoutCount; // number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
     // INTERNALLY
-    uint8_t MatchDropoutCount;      // actual dropout count. If value falls below MaxMatchDropoutCount, filtered match is valid.
+    // Clipped at MaxMatchDropoutCount + MinMatchNODropoutCount, so at least MinMatchNODropoutCount matches must happen to set FrequencyMatchFiltered not to FREQUENCY_MATCH_INVALID
+    uint8_t MatchDropoutCount;      // Current dropout count. If value falls below MaxMatchDropoutCount, filtered match is valid.
+
 
     // OUTPUT
     uint16_t FrequencyFiltered;   // Low pass filter value for frequency, e.g. to compute stable difference to target frequency.
@@ -238,7 +254,7 @@ struct FrequencyDetectorControlStruct {
     MatchStateEnum FrequencyMatchDirect; // Result of match: 0 to 3, FREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
     MatchStateEnum FrequencyMatchFiltered; // same range asFrequencyMatchDirect. Match state processed by low pass filter
     // INTERNALLY
-    uint8_t MatchLowPassFiltered;    // internal value 0 to FILTER_VALUE_MAX/200. Low pass filter value for computing FrequencyMatchFiltered
+    uint8_t MatchLowPassFiltered; // internal value 0 to FILTER_VALUE_MAX/200. Low pass filter value for computing FrequencyMatchFiltered
 };
 
 extern FrequencyDetectorControlStruct FrequencyDetectorControl;
@@ -249,7 +265,8 @@ void setFrequencyDetectorReadingValues(uint8_t aADCChannel, uint8_t aADCReferenc
         uint16_t aRawVoltageMinDelta);
 void setFrequencyDetectorReadingPrescaleValue(uint8_t aADCPrescalerValue);
 void setFrequencyDetectorMatchValues(uint16_t aFrequencyMin, uint16_t aFrequencyMax);
-void setFrequencyDetectorDropoutValues(uint8_t aMinMatchNODropoutCount, uint8_t aMaxMatchDropoutCount);
+void setFrequencyDetectorDropoutCounts(uint8_t aMinMatchNODropoutCount, uint8_t aMaxMatchDropoutCount);
+bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_t aMaxMatchDropoutMillis);
 
 uint16_t readSignal();
 uint16_t doPlausi();
