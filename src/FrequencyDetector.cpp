@@ -130,6 +130,8 @@ void setFrequencyDetectorMatchValues(uint16_t aFrequencyMin, uint16_t aFrequency
 void setFrequencyDetectorDropoutCounts(uint8_t aMinMatchNODropoutCount, uint8_t aMaxMatchDropoutCount) {
     FrequencyDetectorControl.MinMatchNODropoutCount = aMinMatchNODropoutCount;
     FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutCount;
+    // set initial to maximum dropouts
+    FrequencyDetectorControl.MatchDropoutCount = aMinMatchNODropoutCount + aMaxMatchDropoutCount;
 }
 
 /*
@@ -143,10 +145,13 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
         FrequencyDetectorControl.MinMatchNODropoutCount = aMinMatchNODropoutMillis
                 / FrequencyDetectorControl.PeriodOfOneReadingMillis;
         FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutMillis / FrequencyDetectorControl.PeriodOfOneReadingMillis;
+        // set initial to maximum dropouts
+        FrequencyDetectorControl.MatchDropoutCount = FrequencyDetectorControl.MinMatchNODropoutCount + FrequencyDetectorControl.MaxMatchDropoutCount;
+
         tRetval = true;
-    } else{
+    } else {
 #ifdef INFO
-    Serial.println(F("Error. Values not set! Must call setFrequencyDetectorReadingPrescaleValue() before!"));
+        Serial.println(F("Error. Values not set! Must call setFrequencyDetectorReadingPrescaleValue() before!"));
 #endif
     }
 #ifdef INFO
@@ -173,7 +178,7 @@ void setFrequencyDetectorReadingDefaults() {
 
 /*
  * ADC read routine reads NUMBER_OF_SAMPLES (1024/512) samples and computes:
- * - FrequencyDetectorControl.FrequencyActual - Frequency of signal
+ * - FrequencyDetectorControl.FrequencyRaw - Frequency of signal
  * or error value SIGNAL_STRENGTH_LOW if signal is too weak
  *
  * Sets the next trigger levels for hysteresis of 1/8 peak to peak value:
@@ -182,7 +187,7 @@ void setFrequencyDetectorReadingDefaults() {
  *
  * Sets values for plausibility check:
  * - FrequencyDetectorControl.PeriodLength[]
- * - FrequencyDetectorControl.PeriodCountActual
+ * - FrequencyDetectorControl.PeriodCount
  * - FrequencyDetectorControl.TriggerFirstPosition
  * - FrequencyDetectorControl.TriggerLastPosition
  * Triggering value for next reading, trigger hysteresis is 1/8 peak to peak value
@@ -221,7 +226,7 @@ uint16_t readSignal() {
     uint16_t tValueMin = 1024;
     uint32_t tSumOfSampleValues = 0;
 
-    uint8_t tPeriodCountActual = 0;
+    uint8_t tPeriodCount = 0;
 
     /*
      * Read 512/1024 samples
@@ -251,9 +256,9 @@ uint16_t readSignal() {
             if (tUValue.Word > FrequencyDetectorControl.TriggerLevel) {
                 //Trigger found but skip first (incomplete period)
                 if (tSignalTriggerFound) {
-                    FrequencyDetectorControl.PeriodLength[tPeriodCountActual] = i - tPeriodCountPosition;
-                    if (tPeriodCountActual < (sizeof(FrequencyDetectorControl.PeriodLength) - 1)) {
-                        tPeriodCountActual++;
+                    FrequencyDetectorControl.PeriodLength[tPeriodCount] = i - tPeriodCountPosition;
+                    if (tPeriodCount < (sizeof(FrequencyDetectorControl.PeriodLength) - 1)) {
+                        tPeriodCount++;
                     }
                     tPeriodCountPosition = i;
                 } else {
@@ -280,7 +285,7 @@ uint16_t readSignal() {
 
     FrequencyDetectorControl.AverageLevel = tSumOfSampleValues / NUMBER_OF_SAMPLES;
     FrequencyDetectorControl.TriggerLastPosition = tPeriodCountPosition;
-    FrequencyDetectorControl.PeriodCountActual = tPeriodCountActual;
+    FrequencyDetectorControl.PeriodCount = tPeriodCount;
 
     uint16_t tDelta = tValueMax - tValueMin;
     FrequencyDetectorControl.SignalDelta = tDelta;
@@ -322,22 +327,22 @@ uint16_t readSignal() {
      */
     if (tDelta < FrequencyDetectorControl.RawVoltageMinDelta) {
         // don't compute new TriggerHysteresis value because signal is too low!!!!
-        FrequencyDetectorControl.FrequencyActual = SIGNAL_STRENGTH_LOW;
+        FrequencyDetectorControl.FrequencyRaw = SIGNAL_STRENGTH_LOW;
     } else {
 
         // set hysteresis
         uint8_t TriggerHysteresis = tDelta / 8;
         FrequencyDetectorControl.TriggerLevelLower = tTriggerValue - TriggerHysteresis;
 
-        if (tPeriodCountActual == 0) {
-            FrequencyDetectorControl.FrequencyActual = SIGNAL_NO_TRIGGER; // Frequency too low
+        if (tPeriodCount == 0) {
+            FrequencyDetectorControl.FrequencyRaw = SIGNAL_NO_TRIGGER; // Frequency too low
         } else {
 
             /*
              * Must use long intermediate value to avoid 16 Bit overflow
              * (FrequencyDetectorControl.FrequencyOfOneSample / Number of samples) => frequency for one period in number of samples
              */
-            FrequencyDetectorControl.FrequencyActual = ((long) tPeriodCountActual * FrequencyDetectorControl.FrequencyOfOneSample)
+            FrequencyDetectorControl.FrequencyRaw = ((long) tPeriodCount * FrequencyDetectorControl.FrequencyOfOneSample)
                     / (FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition);
 
 #ifdef DEBUG
@@ -346,42 +351,42 @@ uint16_t readSignal() {
             Serial.print(F(" TriggerValue="));
             Serial.print(tTriggerValue);
             Serial.print(F(" PeriodCount="));
-            Serial.print(FrequencyDetectorControl.PeriodCountActual);
+            Serial.print(FrequencyDetectorControl.PeriodCount);
             Serial.print(F(" Samples="));
             Serial.print(FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition);
             Serial.print(F(" Freq="));
-            Serial.println(FrequencyDetectorControl.FrequencyActual);
+            Serial.println(FrequencyDetectorControl.FrequencyRaw);
 #endif
         }
     }
-    return FrequencyDetectorControl.FrequencyActual;
+    return FrequencyDetectorControl.FrequencyRaw;
 }
 
-/** Overwrite FrequencyDetectorControl.FrequencyActual with these error values if plausibility check fails:
+/** Overwrite FrequencyDetectorControl.FrequencyRaw with these error values if plausibility check fails:
  *      SIGNAL_FIRST_PLAUSI_FAILED 2
  *      SIGNAL_DISTRIBUTION_PLAUSI_FAILED 3
  * Used plausibility rules are:
  * 1. A trigger must be detected in first and last 1/8 of samples
  * 2. Only 1/8 of the samples are allowed to be greater than 1.5 or less than 0.75 of the average period
- * @return the (changed) FrequencyDetectorControl.FrequencyActual
+ * @return the (changed) FrequencyDetectorControl.FrequencyRaw
  */
 uint16_t doPlausi() {
-    if (FrequencyDetectorControl.FrequencyActual > SIGNAL_STRENGTH_LOW) {
+    if (FrequencyDetectorControl.FrequencyRaw > SIGNAL_STRENGTH_LOW) {
         /*
          * plausibility check
          */
         if (FrequencyDetectorControl.TriggerFirstPosition >= LEADING_TRAILING_TRIGGER_MARGIN
                 || FrequencyDetectorControl.TriggerLastPosition <= NUMBER_OF_SAMPLES - LEADING_TRAILING_TRIGGER_MARGIN) {
-            FrequencyDetectorControl.FrequencyActual = SIGNAL_FIRST_LAST_PLAUSI_FAILED;
+            FrequencyDetectorControl.FrequencyRaw = SIGNAL_FIRST_LAST_PLAUSI_FAILED;
 
         } else {
-            uint8_t tPeriodCountActual = FrequencyDetectorControl.PeriodCountActual;
+            uint8_t tPeriodCount = FrequencyDetectorControl.PeriodCount;
             /*
              * check if not more than 1/8 of periods are out of range - less than 0.75 or more than 1.5
              */
             // average can be between 8 an 32
             uint8_t tAveragePeriod = (FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition)
-                    / tPeriodCountActual;
+                    / tPeriodCount;
             uint8_t tPeriodMax = tAveragePeriod + (tAveragePeriod / 2);
             uint8_t tPeriodMin = tAveragePeriod - (tAveragePeriod / 4);
             uint8_t tErrorCount = 0;
@@ -389,7 +394,7 @@ uint16_t doPlausi() {
             Serial.print(tAveragePeriod);
             Serial.print("  ");
 #endif
-            for (uint8_t i = 0; i < tPeriodCountActual; ++i) {
+            for (uint8_t i = 0; i < tPeriodCount; ++i) {
 #ifdef TRACE
                 Serial.print(FrequencyDetectorControl.PeriodLength[i]);
                 Serial.print(",");
@@ -399,21 +404,21 @@ uint16_t doPlausi() {
                     tErrorCount++;
                 }
             }
-            if (tErrorCount > maximumAllowableCountOf(tPeriodCountActual)) {
-                FrequencyDetectorControl.FrequencyActual = SIGNAL_DISTRIBUTION_PLAUSI_FAILED;
+            if (tErrorCount > maximumAllowableCountOf(tPeriodCount)) {
+                FrequencyDetectorControl.FrequencyRaw = SIGNAL_DISTRIBUTION_PLAUSI_FAILED;
             }
 #ifdef TRACE
             Serial.print(tErrorCount);
             Serial.print(F("  #="));
-            Serial.print(tPeriodCountActual);
+            Serial.print(tPeriodCount);
             Serial.print(F("  F="));
-            Serial.print(FrequencyDetectorControl.FrequencyActual);
+            Serial.print(FrequencyDetectorControl.FrequencyRaw);
             Serial.println(F("Hz"));
 
 #endif
         }
     }
-    return FrequencyDetectorControl.FrequencyActual;
+    return FrequencyDetectorControl.FrequencyRaw;
 }
 
 /**
@@ -510,5 +515,60 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
             }
         }
     }
+}
+
+void printLegendForArduinoPlotter(Print * aSerial) {
+    aSerial->println(
+            F(
+                    "FrequencyMatchDirect*95 MatchDropoutCount*13  MatchLowPassFiltered*2 FrequencyMatchFiltered*100 FrequencyRaw FrequencyFiltered"));
+}
+
+void printDataForArduinoPlotter(Print * aSerial) {
+    static uint8_t sConsecutiveErrorCount = 0; // Print only 10 errors, then stop
+
+    if (sConsecutiveErrorCount > 10) {
+        // check for error condition
+        if (FrequencyDetectorControl.FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) {
+            return;
+        } else {
+            // no error any more, start again with print
+            sConsecutiveErrorCount = 0;
+            printLegendForArduinoPlotter(aSerial);
+        }
+    }
+    /*
+     *  Print values for Arduino Serial Plotter
+     */
+    // FrequencyMatchDirect 0 to 3
+    aSerial->print(FrequencyDetectorControl.FrequencyMatchDirect * 95);
+    aSerial->print(" ");
+
+    // MatchDropoutCount 0 to MaxMatchDropoutCount + MinMatchNODropoutCount
+    aSerial->print(FrequencyDetectorControl.MatchDropoutCount * (97 / MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT));
+    if (FrequencyDetectorControl.MatchDropoutCount
+            == FrequencyDetectorControl.MaxMatchDropoutCount + FrequencyDetectorControl.MinMatchNODropoutCount) {
+        sConsecutiveErrorCount++;
+    }
+    aSerial->print(" ");
+
+    // MatchLowPassFiltered 0 to 200
+    aSerial->print(FrequencyDetectorControl.MatchLowPassFiltered * 2);
+    aSerial->print(" ");
+
+    // FrequencyMatchFiltered 0 to 3
+    aSerial->print(FrequencyDetectorControl.FrequencyMatchFiltered * 100);
+    aSerial->print(" ");
+
+    // print them last to leave the bright colors for the first values
+    uint16_t tFrequencyForPlot = FrequencyDetectorControl.FrequencyRaw;
+    // We can detect frequencies below 600 Hz, so this value may be not always significant but it is a first guess
+    if (tFrequencyForPlot <= SIGNAL_MAX_ERROR_CODE) {
+        tFrequencyForPlot = 600 + (tFrequencyForPlot * 20);
+    }
+    aSerial->print(tFrequencyForPlot);
+    aSerial->print(" ");
+
+    aSerial->print(FrequencyDetectorControl.FrequencyFiltered);
+    aSerial->println();
 }
 

@@ -17,16 +17,16 @@ The value of millis() is adjusted after reading.<br/>
 The alternative to disabling the interrupt is getting partially invalid results!
 
 ### `readSignal()` is the ADC read routine, which reads 1024/512 samples and computes the following values:
-  1. Frequency of signal `uint16_t FrequencyActual;`
+  1. Frequency of signal `uint16_t FrequencyRaw;`
   2. MaxValue - MinValue `uint16_t SignalDelta;`
   3. Average = (SumOfSampleValues / NumberOfSamples) `uint16_t AverageLevel;`
   4. The length of each period (between 2 trigger conditions) in the `PeriodLength[]` array.
-  
+
 ### `doPlausi()` checks if the signal in the `PeriodLength[]` array is not noisy and valid. It uses the following plausibility rules:
   1. A trigger must be detected in first and last 1/8 of samples.
   2. Only 1/8 of the samples are allowed to be greater than 1.5 or less than 0.75 of the average period.
-  In case of failure, the value of `FrequencyActual` is overwritten with the error code.
-  
+  In case of failure, the value of `FrequencyRaw` is overwritten with the error code.
+
 ### `computeDirectAndFilteredMatch()` waits for n matches within a given frequency range (FrequencyMatchLow - FrequencyMatchHigh)
 and also low pass filters the result for smooth transitions between the 3 match states (lower, match, greater). It computes the following values:
   1. Low pass filtered frequency of signal `uint16_t FrequencyFiltered;`
@@ -53,6 +53,11 @@ If the (low pass filtered) match from the FrequencyDetector library holds for `M
 the output switches again, to go back to the former state.
 This can be useful if a machine generated signal (e.g. from a vacuum cleaner) matches the range.<br/>
 **This example is mainly created to run on an ATtiny85 at 1 MHz, but will work also on a plain Arduino.**
+
+### Arduino Plotter output of WhistleSwitch in action
+Above you see the `FrequencyRaw` I whistled with all the dropouts and the `FrequencyFiltered` without dropouts but with a slight delay if the `FrequencyRaw` changes.<br/>
+The WhistleSwitch example uses the `FrequencyMatchFiltered` value, to decide if a match happens. At 80 and 140 you see 2 short and at 300 you see a long valid match.
+![Arduino Plotter output of whistle switch in action](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/WhistleSwitchPlotterOutput.png)
 
 ## PREDEFINED RANGES
 After power up or reset, the feedback LED echoes the range number. Range number 10 indicates an individual range, programmed by advanced selecting.
@@ -106,15 +111,15 @@ The setting is stored in EEPROM. Default is `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3` 
 ## RESET
 A reset can be performed by power off/on or by pressing the button two times, each time shorter than `RESET_ENTER_BUTTON_PUSH_MILLIS` (0.12 seconds) within a `RESET_WAIT_TIMEOUT_MILLIS` (0.3 seconds) interval.
 
-## Using a Digispark board 
+## Using a Digispark board
 If you enable `INFO`, the program will be too big for the Digispark board in the Arduino IDE, since it is checked against the old (pre V2) bootloader size.<br/>
 If you want `INFO` on the ATtiny85, first use the ATtiny25/45/85 at 1MHz from the ATTinyCore in the Arduino Board manager, since this leads to smaller code size - 6996/5184 compared to 6152/5914 with `INFO` enabled/disabled.<br/>
 Second, upgrade the micronucleus bootloader on the digispark board with *https://github.com/ArminJo/micronucleus-firmware/tree/master/firmware/upgrades/upgrade-t85_default.hex*.<br/>
 Load the new bootloader with `%UserProfile%\AppData\Local\Arduino15\packages\digistump\tools\micronucleus\2.0a4\launcher.exe -cdigispark -Uflash:w:upgrade-t85_default.hex:i`, this gives additional 500 bytes more program space.<br/>
 Then create the hex file by pressing the upload button in the Arduino IDE.
-The upload will fail, but in one of the last lines in the console you will find the filename of the hex file e.g. *C:\\Users\\<username>\\AppData\\Local\\Temp\\arduino_build_**12345**/WhistleSwitch.ino.hex*.<br/>
+The upload will fail, but in one of the last lines in the console you will find the filename of the hex file e.g. *C:\\Users\\<username>\\AppData\\Local\\Temp\\arduino_build_**12345**\\WhistleSwitch.ino.hex*.<br/>
 You can then upload the hex program file manually with e.g.:
-`%UserProfile%\AppData\Local\Arduino15\packages\digistump\tools\micronucleus\2.0a4\launcher.exe -cdigispark -Uflash:w:%UserProfile%\\AppData\\Local\\Temp\\arduino_build_12345/WhistleSwitch.ino.hex:i`
+`%UserProfile%\AppData\Local\Arduino15\packages\digistump\tools\micronucleus\2.0a4\launcher.exe -cdigispark -Uflash:w:%UserProfile%\\AppData\\Local\\Temp\\arduino_build_12345\\WhistleSwitch.ino.hex:i`
 
 # SCHEMATIC for external components of FrequencyDetector / WhistleSwitch
 ```
@@ -166,6 +171,7 @@ MAX4466 / 9814 MICROPHONE  | | 1M
 - Corrected formula for compensating millis().
 - New field PeriodOfOneReadingMillis.
 - Now accept dropout values in milliseconds.
+- New functions `printLegendForArduinoPlotter()` and `printDataForArduinoPlotter()`.
 
 # Travis CI
 The FrequencyDetector library examples are tested on Travis CI for the following boards:

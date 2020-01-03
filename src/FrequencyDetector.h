@@ -31,6 +31,7 @@
  * - Corrected formula for compensating millis().
  * - New field PeriodOfOneReadingMillis.
  * - Now accept dropout values in milliseconds.
+ * - New functions printLegendForArduinoPlotter() and printDataForArduinoPlotter().
  */
 
 //#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
@@ -85,12 +86,12 @@
 #define FREQUENCY_MAX_DEFAULT 2000
 
 /*
- * Milliseconds (converted to number of readings) of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
+ * Milliseconds (converted to number of readings) of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
  */
 #define MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT 200
 
 /*
- * Milliseconds (converted to number of readings) of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+ * Milliseconds (converted to number of readings) of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
  */
 #define MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT 150
 
@@ -142,9 +143,9 @@
 #define CLOCKS_FOR_READING_NO_LOOP 625 // extra clock cycles outside of the loop for one signal reading. Usefd to compensate millis();
 #define MICROS_PER_BUFFER_READING ((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP)
 
-// number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
+// number of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
 #define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT ((MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
-// number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+// number of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
 #define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT ((MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
 
 /*
@@ -155,7 +156,7 @@
 #endif
 extern volatile unsigned long timer0_millis;
 
-// FrequencyActual error values
+// FrequencyRaw error values
 #define SIGNAL_NO_TRIGGER 0
 #define SIGNAL_STRENGTH_LOW 1
 // You get this error code if no trigger occurs in the first or last 128 samples because signal is noisy or or only a burst
@@ -228,8 +229,8 @@ struct FrequencyDetectorControlStruct {
     /*
      * Values computed by readSignal() to be used by doPlausi()
      */
-    uint16_t FrequencyActual;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doPlausi()
-    uint8_t PeriodCountActual; // Actual count of periods in all samples - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1)!!!
+    uint16_t FrequencyRaw;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doPlausi()
+    uint8_t PeriodCount; // Count of periods in current reading - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1)!!!
     uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_SAMPLES / 8
     uint16_t TriggerFirstPosition; // position of first detection of a trigger in all samples
     uint16_t TriggerLastPosition;  // position of last detection of a trigger in all samples
@@ -241,8 +242,8 @@ struct FrequencyDetectorControlStruct {
     uint16_t FrequencyMatchLow;   // Thresholds for matching
     uint16_t FrequencyMatchHigh;
 
-    uint8_t MaxMatchDropoutCount; // number of allowed error (FrequencyActual <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
-    uint8_t MinMatchNODropoutCount; // number of needed valid readings (FrequencyActual > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+    uint8_t MaxMatchDropoutCount; // number of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
+    uint8_t MinMatchNODropoutCount; // number of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
     // INTERNALLY
     // Clipped at MaxMatchDropoutCount + MinMatchNODropoutCount, so at least MinMatchNODropoutCount matches must happen to set FrequencyMatchFiltered not to FREQUENCY_MATCH_INVALID
     uint8_t MatchDropoutCount;      // Current dropout count. If value falls below MaxMatchDropoutCount, filtered match is valid.
@@ -271,5 +272,8 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
 uint16_t readSignal();
 uint16_t doPlausi();
 void computeDirectAndFilteredMatch(uint16_t aFrequency);
+
+void printLegendForArduinoPlotter(Print * aSerial);
+void printDataForArduinoPlotter(Print * aSerial);
 
 #endif /* FREQUENCYDETECTOR_H_ */
