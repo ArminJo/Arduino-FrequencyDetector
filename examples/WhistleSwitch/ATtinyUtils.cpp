@@ -1,8 +1,24 @@
 /*
- * TinyUtils.cpp
+ * ATtinyUtils.cpp
  *
- *  Created on: 05.03.2018
- *      Author: Armin
+ *  Copyright (C) 2018-2020  Armin Joachimsmeyer
+ *  Email: armin.joachimsmeyer@gmail.com
+ *
+ *  This file is part of ArduinoUtils https://github.com/ArminJo/ArduinoUtils.
+ *
+ *  ArduinoUtils is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *
  */
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
 
@@ -16,8 +32,6 @@
 #include <avr/boot.h>  // needed for boot_signature_byte_get()
 #include <avr/power.h> // needed for clock_prescale_set()
 #include <avr/sleep.h> // needed for isBODSFlagExistent()
-#include <avr/io.h>
-#include <avr/interrupt.h>  // for sei() + cli()
 #include "digitalWriteFast.h"
 
 // since we have not included Arduino.h

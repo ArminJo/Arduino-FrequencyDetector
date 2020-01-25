@@ -1,9 +1,24 @@
 /*
- * TinyUtils.h
+ * ATtinyUtils.h
  *
- *  Created on: 05.03.2018
- *  Copyright (C) 2018  Armin Joachimsmeyer
- *  armin.joachimsmeyer@gmail.com
+ *  Copyright (C) 2018-2020  Armin Joachimsmeyer
+ *  Email: armin.joachimsmeyer@gmail.com
+ *
+ *  This file is part of ArduinoUtils https://github.com/ArminJo/ArduinoUtils.
+ *
+ *  ArduinoUtils is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *
  */
 
 //
@@ -15,8 +30,8 @@
 //  PCINT4/XTAL2/CLKO/OC1B/ADC2 (D4) PB4  3|    |6  PB1 (D1) MISO/DO/AIN1/OC0B/OC1A/PCINT1 / TX Debug output
 //                                   GND  4|    |5  PB0 (D0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0
 //                                         +----+
-#ifndef TINYUTILS_H_
-#define TINYUTILS_H_
+#ifndef ATTINYUTILS_H_
+#define ATTINYUTILS_H_
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
 
@@ -82,4 +97,6 @@ bool isBODSFlagExistent();
 void changeDigisparkClock();
 
 #endif //  defined (__AVR_ATtiny85__)
-#endif /* TINYUTILS_H_ */
+#endif /* ATTINYUTILS_H_ */
+
+#pragma once
