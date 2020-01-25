@@ -1,5 +1,5 @@
 # Frequency Detector Library for Arduino and ATtinys
-### Version 1.1.0
+### Version 1.1.1
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector.svg?branch=master)](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector)
 [![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FArduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
@@ -167,6 +167,9 @@ MAX4466 / 9814 MICROPHONE  | | 1M
 ```
 
 # Revision History
+### Version 1.1.1
+- Moved libraries for WhistleSwitch example.
+
 ### Version 1.1.0
 - Corrected formula for compensating millis().
 - New field PeriodOfOneReadingMillis.
