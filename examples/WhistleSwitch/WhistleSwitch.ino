@@ -111,6 +111,9 @@
  *
  */
 
+#include <Arduino.h>
+#include "FrequencyDetector.h"
+
 #define VERSION_EXAMPLE "7.3"
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__)
@@ -118,10 +121,14 @@
 #endif
 
 #if defined(__AVR_ATtiny85__)
+
 //#define MEASURE_TIMING // not activated yet since there is no timing pin left
+
 //#define TRACE
 //#define DEBUG
 //#define INFO
+#include "DebugLevel.h" // to propagate debug levels
+
 #include "ATtinyUtils.h" // for changeDigisparkClock()
 #  if ! defined(ARDUINO_AVR_DIGISPARK)
 #define INFO // needs around 1600 bytes FLASH - 4450 to 6060 bytes
@@ -132,13 +139,13 @@
 #else
 //#define ARDUINO_PLOTTER
 //#define MEASURE_TIMING
+
 //#define TRACE
 //#define DEBUG
 #define INFO
-#endif // defined(__AVR_ATtiny85__)
+#include "DebugLevel.h" // to propagate debug levels
 
-#include <Arduino.h>
-#include "FrequencyDetector.h"
+#endif // defined(__AVR_ATtiny85__)
 
 /*
  * I can whistle from 550 to 1900 Hz (and do it easy from 950 - 1800)
@@ -779,7 +786,9 @@ uint16_t getFreeRam(void) {
  * Setup section
  *******************************************************************************************/
 void setup() {
+#ifdef INFO
     uint8_t tMCUSRStored = MCUSR; // content of MCUSR register at startup
+#endif
     MCUSR = 0; // to prepare for next reset or power on
 
     /*
@@ -1359,7 +1368,7 @@ ISR(PCINT0_vect) {
         PCICR = 0; // disable new PCINT's, since we allow nested interrupts
         PCIFR = _BV(PCIF2); // Must clear interrupt flag in order to avoid to call this ISR again, when enabling interrupts below.
 #elif defined(__AVR_ATtiny85__)
-    GIMSK &= ~ _BV(PCIE); // disable new PCINT's, since we allow nested interrupts
+    GIMSK &= ~_BV(PCIE); // disable new PCINT's, since we allow nested interrupts
     GIFR = _BV(PCIF); // Must clear interrupt flag in order to avoid to call this ISR again, when enabling interrupts below.
 #endif
 

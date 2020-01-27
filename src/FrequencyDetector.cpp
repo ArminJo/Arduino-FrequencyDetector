@@ -9,7 +9,7 @@
  * The value of millis() is adjusted after reading.
  * The alternative to disabling the interrupt is getting partially invalid results!
  *
- *  Copyright (C) 2014  Armin Joachimsmeyer
+ *  Copyright (C) 2014-2020  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-FrequencyDetector https://github.com/ArminJo/Arduino-FrequencyDetector.
@@ -41,15 +41,18 @@
 
 #include <Arduino.h>
 
+#include "FrequencyDetector.h"
+
 //#define INFO
 //#define DEBUG
 //#define TRACE
+#include "DebugLevel.h" // to propagate debug levels
 
 #if (defined(INFO) || defined(DEBUG) || defined(TRACE)) && (defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__))
-#include "ATtinySerialOut.h"
+#include "ATtinySerialOut.h" // Available as Arduino library and contained in WhistleSwitch example.
 #endif
 
-#include "FrequencyDetector.h"
+#include "MillisUtils.h" // for timer0_millis
 
 #define maximumAllowableCountOf(aPeriodCountTotal) (aPeriodCountTotal / 8)
 

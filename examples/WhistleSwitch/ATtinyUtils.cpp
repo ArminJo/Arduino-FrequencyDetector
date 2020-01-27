@@ -1,10 +1,10 @@
 /*
  * ATtinyUtils.cpp
  *
- *  Copyright (C) 2018-2020  Armin Joachimsmeyer
+ *  Copyright (C) 2016-2020  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
- *  This file is part of ArduinoUtils https://github.com/ArminJo/ArduinoUtils.
+ *  This file is part of Arduino-Utils https://github.com/ArminJo/Arduino-Utils.
  *
  *  ArduinoUtils is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,38 +61,7 @@ inline void pinModeFastPortB(uint8_t aOutputPinNumber, uint8_t aMode) {
     (aMode ? DDRB |= (1 << aOutputPinNumber) /* OUTPUT */: DDRB &= ~(1 << aOutputPinNumber));
 }
 
-void __attribute__((weak)) delayMilliseconds(unsigned int aMillis) {
-    for (unsigned int i = 0; i < aMillis; ++i) {
-        delayMicroseconds(1000);
-    }
-}
-
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-
-/*
- * Like tone(), but use output B - OCR1B (PB4) + !OCR1B (PB3)
- * Assumes port mode already set to output
- */
-void PWMtone(unsigned int aFrequency, unsigned int aDurationMillis) {
-    // Determine which prescaler to use
-    uint8_t tPrescaler = 0x01;
-    uint16_t tOCR = F_CPU / aFrequency;
-    while (tOCR > 0x100 && tPrescaler < 0x0F) {
-        tPrescaler++;
-        tOCR >>= 1;
-
-    }
-    OCR1C = tOCR - 1; // The frequency of the PWM will be Timer Clock 1 Frequency divided by (OCR1C value + 1).
-    OCR1B = OCR1C / 2; // set PWM to 50%
-    GTCCR = (1 << PWM1B) | (1 << COM1B0); // Switch to PWM Mode with OC1B (PB4) + !OC1B (PB3) outputs enabled
-    TCCR1 = (tPrescaler << CS10);
-
-    delayMilliseconds(aDurationMillis);
-    TCCR1 = 0; // Select no clock
-    GTCCR = 0; // Disconnect OC1B + !OC1B
-    digitalWriteFast(PB3, 0);
-    digitalWriteFast(PB4, 0);
-}
 
 /*
  * initialize outputs and use PWM Mode

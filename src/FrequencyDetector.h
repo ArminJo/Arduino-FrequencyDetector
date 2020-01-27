@@ -38,20 +38,6 @@
 #define FREQUENCY_RANGE_DEFAULT
 //#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 3000 Hz
 
-// Propagate debug level
-#ifdef TRACE
-#define DEBUG
-#endif
-#ifdef DEBUG
-#define INFO
-#endif
-#ifdef INFO
-#define WARN
-#endif
-#ifdef WARN
-#define ERROR
-#endif
-
 /*
  * Global settings which are needed at compile time
  */
@@ -147,14 +133,6 @@
 #define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT ((MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
 // number of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
 #define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT ((MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
-
-/*
- * storage for millis value to enable compensation for interrupt disable at signal acquisition etc.
- */
-#if ( defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) )
-#define timer0_millis millis_timer_millis // The ATTinyCore libraries use other variable name in wiring.c
-#endif
-extern volatile unsigned long timer0_millis;
 
 // FrequencyRaw error values
 #define SIGNAL_NO_TRIGGER 0

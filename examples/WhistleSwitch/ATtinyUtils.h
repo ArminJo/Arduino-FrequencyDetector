@@ -6,7 +6,7 @@
  *
  *  This file is part of ArduinoUtils https://github.com/ArminJo/ArduinoUtils.
  *
- *  ArduinoUtils is free software: you can redistribute it and/or modify
+ *  Arduino-Utils is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
@@ -39,32 +39,27 @@
 #include <avr/io.h>
 
 #if defined(ARDUINO_AVR_DIGISPARK)
-#undef LED_BUILTIN
 #define LED_BUILTIN PB1
 #elif defined(ARDUINO_AVR_DIGISPARKPRO)
-// On a Digispark Pro we have PB1 / D9 / PCB pin 1
-#undef LED_BUILTIN
-#define LED_BUILTIN (9)
+#define LED_BUILTIN (9) // On a Digispark Pro we have PB1 / D9 / PCB pin 1
 #endif
 
-
-
 #if (F_CPU == 1000000)
-#define TIMER0_CLOCK_DIVIDER_FOR_64_MICROS ((1 << CS01) | (1 << CS00))
+#define TIMER0_CLOCK_DIVIDER_FOR_64_MICROS (_BV(CS01) | _BV(CS00))
 
-#define TIMER1_CLOCK_DIVIDER_FOR_8_MICROS (1 << CS12)
-#define TIMER1_CLOCK_DIVIDER_FOR_4_MICROS ((1 << CS11) | (1 << CS10))
-#define TIMER1_CLOCK_DIVIDER_FOR_2_MICROS (1 << CS11)
-#define TIMER1_CLOCK_DIVIDER_FOR_1_MICRO (1 << CS10)
+#define TIMER1_CLOCK_DIVIDER_FOR_8_MICROS _BV(CS12)
+#define TIMER1_CLOCK_DIVIDER_FOR_4_MICROS (_BV(CS11) | _BV(CS10))
+#define TIMER1_CLOCK_DIVIDER_FOR_2_MICROS _BV(CS11)
+#define TIMER1_CLOCK_DIVIDER_FOR_1_MICRO _BV(CS10)
 #endif
 
 #if (F_CPU == 8000000)
-#define TIMER0_CLOCK_DIVIDER_FOR_128_MICROS ((1 << CS02) | (1 << CS00))
+#define TIMER0_CLOCK_DIVIDER_FOR_128_MICROS (_BV(CS02) | _BV(CS00))
 
-#define TIMER1_CLOCK_DIVIDER_FOR_8_MICROS ((1 << CS12) | (1 << CS11)| (1 << CS10))
-#define TIMER1_CLOCK_DIVIDER_FOR_4_MICROS ((1 << CS12) | (1 << CS11))
-#define TIMER1_CLOCK_DIVIDER_FOR_2_MICROS ((1 << CS12) | (1 << CS10))
-#define TIMER1_CLOCK_DIVIDER_FOR_1_MICRO (1 << CS12)
+#define TIMER1_CLOCK_DIVIDER_FOR_8_MICROS (_BV(CS12) | _BV(CS11)| _BV(CS10))
+#define TIMER1_CLOCK_DIVIDER_FOR_4_MICROS (_BV(CS12) | _BV(CS11))
+#define TIMER1_CLOCK_DIVIDER_FOR_2_MICROS (_BV(CS12) | _BV(CS10))
+#define TIMER1_CLOCK_DIVIDER_FOR_1_MICRO _BV(CS12)
 #endif
 
 /*
@@ -87,7 +82,6 @@ inline void delay4CyclesInlineExact(uint16_t a4Microseconds) {
     );
 }
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-void PWMtone(unsigned int aFrequency, unsigned int aDurationMillis = 0);
 void toneWithTimer1PWM(uint16_t aFrequency, bool aUseOutputB = false);
 #endif
 
