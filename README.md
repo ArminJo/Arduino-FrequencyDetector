@@ -1,7 +1,8 @@
 # Frequency Detector Library for Arduino and ATtinys
-### Version 1.1.1
+### [Version 1.1.1](https://github.com/ArminJo/Arduino-FrequencyDetector/releases)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Build Status](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector.svg?branch=master)](https://travis-ci.org/ArminJo/Arduino-FrequencyDetector)
+[![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
+[![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/build/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
 [![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FArduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
 
 YouTube video of whistle switch example in action.
@@ -176,11 +177,11 @@ MAX4466 / 9814 MICROPHONE  | | 1M
 - Now accept dropout values in milliseconds.
 - New functions `printLegendForArduinoPlotter()` and `printDataForArduinoPlotter()`.
 
-# Travis CI
-The FrequencyDetector library examples are tested on Travis CI for the following boards:
+# CI
+Since Travis CI is unreliable and slow, the library examples are now tested with GitHub Actions for the following boards:
 
-- Arduino Uno
-- Digispark (using ATTiny85 @1MHz)
-- Generic ATTiny85 @1MHz
+- arduino:avr:uno
+- digistump:avr:digispark-tiny1
+- ATTinyCore:avr:attinyx5:chip=85,clock=1internal
 
 #### If you find this library useful, please give it a star.

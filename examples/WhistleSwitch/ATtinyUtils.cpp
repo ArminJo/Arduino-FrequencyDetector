@@ -22,6 +22,7 @@
  */
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
 
+//#define DEBUG
 #ifdef DEBUG
 // Should be first include to avoid unwanted use of Serial object defined in HardwareSerial
 #include "ATtinySerialOut.h"
@@ -76,7 +77,7 @@ void toneWithTimer1PWM(uint16_t aFrequency, bool aUseOutputB) {
         tOCR >>= 1;
     }
 
-    OCR1C = tOCR - 1; // The frequency of the PWM will be Timer Clock 1 Frequency divided by (OCR1C value + 1).
+    OCR1C = tOCR - 1; // The frequency of the PWM will be Timer Clock 1 frequency divided by (OCR1C value + 1).
 
     if (aUseOutputB) {
         OCR1B = tOCR / 2; // 50% PWM
@@ -91,6 +92,19 @@ void toneWithTimer1PWM(uint16_t aFrequency, bool aUseOutputB) {
         GTCCR = 0;
         TCCR1 = (1 << PWM1A) | (1 << COM1A0) | tPrescaler; // PWM Mode with OCR1A (PB1) + !OCR1A (PB0) outputs enabled
     }
+}
+
+void periodicInterruptWithTimer1(uint16_t aFrequency){
+    uint8_t tPrescaler = 0x01;
+    uint16_t tOCR = F_CPU / aFrequency;
+    while (tOCR > 0x100 && tPrescaler < 0x0F) {
+        tPrescaler++;
+        tOCR >>= 1;
+    }
+    OCR1C = tOCR - 1; // The frequency of the interrupt will be Timer Clock 1 frequency divided by (OCR1C value + 1).
+
+    TCCR1 |= (1 << CTC1) | tPrescaler;  // clear timer on compare match
+    TIMSK |= (1 << OCIE1A); // enable compare match interrupt
 }
 #endif
 
@@ -155,9 +169,9 @@ void changeDigisparkClock() {
         writeUnsignedByteHex(tOSCCAL);
         writeString(F(" to "));
         writeUnsignedByteHex(tStoredOSCCAL);
-        write1Start8Data1StopNoParity('\n');
+        writeCRLF();
 #endif
-        // retrieve the factory-stored oscillator calibration bytes to revert the digispark OSCCAL tweak
+        // retrieve the factory-stored oscillator calibration bytes to revert the Digispark OSCCAL tweak
         OSCCAL = tStoredOSCCAL;
     }
 }

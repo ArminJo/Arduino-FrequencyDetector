@@ -126,6 +126,10 @@
 #define MICROS_PER_SAMPLE 26
 #  endif
 #endif
+#ifndef PRESCALE_VALUE_DEFAULT
+# error "F_CPU is not one of 16000000, 8000000 or 1000000"
+#endif
+
 #define CLOCKS_FOR_READING_NO_LOOP 625 // extra clock cycles outside of the loop for one signal reading. Usefd to compensate millis();
 #define MICROS_PER_BUFFER_READING ((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP)
 

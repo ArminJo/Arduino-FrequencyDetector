@@ -31,7 +31,7 @@
 /*
  * storage for millis value to enable compensation for interrupt disable at signal acquisition etc.
  */
-#if ( defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) )
+#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)  || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
 #define timer0_millis millis_timer_millis // The ATTinyCore libraries use other variable name in wiring.c
 #endif
 #if defined(TIMSK) && !defined(TIMSK0) // some ATtinys
@@ -44,6 +44,8 @@ void disableMillisInterrupt();
 void addToMillis(uint16_t aMillisToAdd);
 void enableMillisInterrupt(uint16_t aMillisToAddForCompensation = 0);
 void delayMilliseconds(unsigned int aMillis);
+bool areMillisGone(unsigned int aMillis);
+bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr);
 
 #endif // MILLIS_UTILS_H_
 

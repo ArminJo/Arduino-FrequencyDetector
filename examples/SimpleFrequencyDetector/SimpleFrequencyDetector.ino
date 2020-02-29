@@ -54,7 +54,8 @@
 #define LED_PLAUSI_FIRST  7
 #define LED_PLAUSI_DISTRIBUTION  8
 
-#define ARDUINO_PLOTTER
+// Enable this to generate output for Arduino Serial Plotter (Ctrl-Shift-L)
+//#define PRINT_FOR_SERIAL_PLOTTE
 
 #if ! defined(LED_BUILTIN) && defined(ARDUINO_AVR_DIGISPARK)
 #define LED_BUILTIN PB1
@@ -125,7 +126,7 @@ void loop() {
         digitalWrite(LED_NO_TRIGGER, HIGH);
     }
 
-#ifdef ARDUINO_PLOTTER
+#ifdef PRINT_FOR_SERIAL_PLOTTER
     /*
      *  Print values for Arduino Serial Plotter
      */

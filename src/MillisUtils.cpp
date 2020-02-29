@@ -115,3 +115,25 @@ void delayMilliseconds(unsigned int aMillis) {
         delayMicroseconds(1000);
     }
 }
+
+/*
+ * returns true if aMillis were gone after last return of true
+ * Can be used as a non blocking replacement for delay()
+ * Simple version, which can only be used at one place in code because of static variable.
+ */
+bool areMillisGone(unsigned int aMillis) {
+    static unsigned long sLastMillis;
+    if (millis() - sLastMillis >= aMillis) {
+        sLastMillis = millis();
+        return true;
+    }
+    return false;
+}
+
+bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr) {
+    if (millis() - *aLastMillisPtr >= aMillis) {
+        *aLastMillisPtr = millis();
+        return true;
+    }
+    return false;
+}

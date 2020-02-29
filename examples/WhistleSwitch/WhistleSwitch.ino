@@ -404,6 +404,9 @@ struct ButtonControlStruct {
     volatile uint16_t ButtonPressDurationMillis; // Duration of active state.
 } ButtonControl;
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
 /*******************************************************************************************
  * Function declaration section
  *******************************************************************************************/
@@ -856,11 +859,9 @@ void setup() {
     Serial.print(F("Free Ram/Stack[bytes]="));
     Serial.println(getFreeRam());
 
-    Serial.print(F("Delay initial="));
-    Serial.print(MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH);
-    Serial.print(F("ms total="));
-    Serial.print(MATCH_MILLIS_NEEDED_DEFAULT + MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH);
-    Serial.println(F("ms"));
+    Serial.println(
+            F(
+                    "Delay initial=" STR(MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) "ms total=" STR(MATCH_MILLIS_NEEDED_DEFAULT + MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) "ms"));
 
     Serial.print(F("Frequency min="));
     Serial.print(FrequencyDetectorControl.FrequencyMatchLow);
@@ -880,7 +881,7 @@ void setup() {
 //initPinChangeInterrupt
 #if defined(__AVR_ATtiny85__)
     GIFR = _BV(PCIF); // Must clear interrupt flag in order to avoid to call this ISR, when enabling interrupts below.
-    GIMSK = _BV(PCIE);//INT0 disable, PCINT enable
+    GIMSK = _BV(PCIE); //INT0 disable, PCINT enable
     PCMSK = _BV(BUTTON_PIN);
 #else
     PCICR = _BV(PCIE2); //PCINT2 enable
@@ -1357,10 +1358,10 @@ ISR(PCINT0_vect) {
 #else
     ISR(PCINT2_vect) {
 #endif
-        /*
-         * Debouncing: disable Pin Change interrupt, clear pending interrupt flag
-         * and enable timer0 interrupt for millis(), since it might be disabled now by readSignal()
-         */
+    /*
+     * Debouncing: disable Pin Change interrupt, clear pending interrupt flag
+     * and enable timer0 interrupt for millis(), since it might be disabled now by readSignal()
+     */
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
 #  ifdef MEASURE_TIMING
     BIT_SET(TIMING_PORT, TIMING_PIN);
@@ -1373,58 +1374,58 @@ ISR(PCINT0_vect) {
 #endif
 
 #if defined(ARDUINO_AVR_DIGISPARK)
-        // Digispark uses timer1 for millis()
-        TIMSK |= _BV(TOIE1);// enable timer1 interrupt for millis()
+    // Digispark uses timer1 for millis()
+    TIMSK |= _BV(TOIE1);// enable timer1 interrupt for millis()
 #else
 #  if defined(TIMSK) && defined(TOIE0)
-        TIMSK |= _BV(TOIE0); // enable timer0 interrupt for millis()
+    TIMSK |= _BV(TOIE0); // enable timer0 interrupt for millis()
 #  elif defined(TIMSK0) && defined(TOIE0)
         TIMSK0 |= _BV(TOIE0);
 #  else
 #error  Timer 0 overflow interrupt not set correctly
 #  endif
 #endif
-        /*
-         * Allow nested interrupts in order for timer0 to keep millis up to date while blocking wait for debouncing.
-         */
-        sei();
-        uint32_t tMillis = millis();
+    /*
+     * Allow nested interrupts in order for timer0 to keep millis up to date while blocking wait for debouncing.
+     */
+    interrupts();
+    uint32_t tMillis = millis();
 #if defined (TRACE)
         Serial.println("S"); // Start
 #endif
-        /*
-         * Blocking wait for debouncing. Can use delay, since timer0 interrupts are enabled.
-         */
-        delay(BUTTON_DEBOUNCE_MILLIS);
+    /*
+     * Blocking wait for debouncing. Can use delay, since timer0 interrupts are enabled.
+     */
+    delay(BUTTON_DEBOUNCE_MILLIS);
 
-        bool tCurrentButtonStateIsActive = IS_BUTTON_ACTIVE; // =(digitalReadFast(BUTTON_PIN) == LOW)
-        if (ButtonControl.ButtonStateIsActive != tCurrentButtonStateIsActive) {
-            ButtonControl.ButtonStateIsActive = tCurrentButtonStateIsActive;
-            /*
-             * Valid change detected
-             */
+    bool tCurrentButtonStateIsActive = IS_BUTTON_ACTIVE; // =(digitalReadFast(BUTTON_PIN) == LOW)
+    if (ButtonControl.ButtonStateIsActive != tCurrentButtonStateIsActive) {
+        ButtonControl.ButtonStateIsActive = tCurrentButtonStateIsActive;
+        /*
+         * Valid change detected
+         */
 #if defined (TRACE)
             Serial.print("L="); // Level
             Serial.println(tCurrentButtonStateIsActive);
 #endif
-            if (!tCurrentButtonStateIsActive) {
-                /*
-                 * Button release here
-                 */
-                ButtonControl.ButtonPressDurationMillis = tMillis - ButtonControl.ButtonLastChangeMillis;
-                ButtonControl.ButtonReleaseMillis = tMillis;
-            }
-            ButtonControl.ButtonLastChangeMillis = tMillis; // must be set after setting ButtonPressDurationMillis
-            ButtonControl.ButtonStateHasJustChanged = true;
+        if (!tCurrentButtonStateIsActive) {
+            /*
+             * Button release here
+             */
+            ButtonControl.ButtonPressDurationMillis = tMillis - ButtonControl.ButtonLastChangeMillis;
+            ButtonControl.ButtonReleaseMillis = tMillis;
         }
+        ButtonControl.ButtonLastChangeMillis = tMillis; // must be set after setting ButtonPressDurationMillis
+        ButtonControl.ButtonStateHasJustChanged = true;
+    }
 #if defined (TRACE)
         else {
             Serial.println("Spike");
         }
 #endif
-        /*
-         * Enable Pin Change interrupt again
-         */
+    /*
+     * Enable Pin Change interrupt again
+     */
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
         if (IS_BUTTON_ACTIVE == ButtonControl.ButtonStateIsActive) {
             PCIFR = _BV(PCIF2); // Clear interrupt flag if no state change in order to cancel all interrupts generated by button bouncing
@@ -1439,5 +1440,5 @@ ISR(PCINT0_vect) {
     }
     GIMSK |= _BV(PCIE); //PCINT enable
 #endif
-    }
+}
 
