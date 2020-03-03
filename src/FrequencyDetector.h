@@ -35,7 +35,9 @@
  */
 
 //#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
-#define FREQUENCY_RANGE_DEFAULT
+#if ! defined(FREQUENCY_RANGE_LOW) && ! defined(FREQUENCY_RANGE_HIGH) 
+#define FREQUENCY_RANGE_DEFAULT // good for frequencies from 400 to 3000 Hz
+#endif
 //#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 3000 Hz
 
 /*
