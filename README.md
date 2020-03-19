@@ -98,7 +98,7 @@ Whistle the pitch you want to detect, then press the button again.
 While you press the button, the pitch range is measured. i.e. the minimum and maximum of the pitch you are whistling is stored.
 
 If you press the button again before the `PROGRAM_MODE_ADVANCED_END_DETECT_MILLIS` (3 seconds) timeout
-the duration of this second press is taken as the needed duration for the signal match to toggle the relay.
+the duration of this second press is taken as the required duration for the signal match to toggle the relay.
 Otherwise the `MATCH_MILLIS_NEEDED_DEFAULT` (1.2 seconds) are taken.
 After timeout of `PROGRAM_MODE_TIMEOUT_MILLIS` (5 seconds) the advanced programming mode is ended
 and the effective duration is echoed by the feedback LED.

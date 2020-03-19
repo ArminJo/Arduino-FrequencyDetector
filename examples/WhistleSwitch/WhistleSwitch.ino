@@ -58,7 +58,7 @@
  *  Press the button once for range 1, twice for range 2 etc. Each button press is echoed by the feedback LED.
  *  Inactivity for PROGRAM_MODE_SIMPLE_END_DETECT_MILLIS (1.5 seconds) ends the programming mode
  *  and the feedback LED echoes the number of button presses recognized.
- *  The needed duration of signal match to toggle the relay is fixed at MATCH_MILLIS_NEEDED_DEFAULT (1.2 seconds).
+ *  The required duration of signal match to toggle the relay is fixed at MATCH_MILLIS_NEEDED_DEFAULT (1.2 seconds).
  *
  *  ADVANCED PROGRAMMING
  *  After entering the advanced programming state, whistle the pitch you want to detect, then press the button again.
@@ -66,7 +66,7 @@
  *  No timeout here!
  *
  *  After button release, you may press the button again before the PROGRAM_MODE_ADVANCED_END_DETECT_MILLIS (3 seconds) timeout.
- *  The duration of this second press is taken as the needed duration for the signal match to toggle the relay.
+ *  The duration of this second press is taken as the required duration for the signal match to toggle the relay.
  *  Otherwise the  MATCH_MILLIS_NEEDED_DEFAULT (1.2 seconds) are taken.
  *  After timeout of PROGRAM_MODE_TIMEOUT_MILLIS (5 seconds) the advanced programming mode is ended
  *  and the effective duration is echoed by the feedback LED.
@@ -121,21 +121,22 @@
 #endif
 
 #if defined(__AVR_ATtiny85__)
-
 //#define MEASURE_TIMING // not activated yet since there is no timing pin left
 
 //#define TRACE
 //#define DEBUG
 //#define INFO
-#include "DebugLevel.h" // to propagate debug levels
+#include "DebugLevel.h" // to propagate above debug levels
 
 #include "ATtinyUtils.h" // for changeDigisparkClock()
 #  if ! defined(ARDUINO_AVR_DIGISPARK)
 #define INFO // needs around 1600 bytes FLASH - 4450 to 6060 bytes
 #  endif
-#  if defined(INFO) || defined(DEBUG) || defined(TRACE)
+
+#  if defined(INFO)
 #include "ATtinySerialOut.h"
 #  endif
+
 #else
 //#define ARDUINO_PLOTTER
 //#define MEASURE_TIMING
@@ -143,7 +144,7 @@
 //#define TRACE
 //#define DEBUG
 #define INFO
-#include "DebugLevel.h" // to propagate debug levels
+#include "DebugLevel.h" // to propagate above debug levels
 
 #endif // defined(__AVR_ATtiny85__)
 
@@ -154,10 +155,14 @@ uint16_t predefinedRangesStart[] = { 1700, 1500, 1300, 1150, 1000, 900, 1550, 12
 uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530, 1230 };
 #define PREDEFINED_RANGES_START_ARRAY_SIZE  (sizeof(predefinedRangesStart)/sizeof(predefinedRangesStart[0]))
 
-#include <avr/eeprom.h>
-#include <avr/wdt.h>
+#if defined(INFO)
+#include "AVRUtils.h" // for getFreeRam()
+#endif
 
 #include "digitalWriteFast.h"
+
+#include <avr/eeprom.h>
+#include <avr/wdt.h>
 
 // ATMEL ATTINY85 - LEGACY LAYOUT - for my old PCBs
 //
@@ -298,7 +303,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 /*
  * Timing
  */
-// Milliseconds (converted to number of readings) of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match
+// Milliseconds (converted to number of readings) of required valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match
 // to avoid short flashes at random signal input
 #define MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH 400
 #define MATCH_MILLIS_NEEDED_DEFAULT (1200 - MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) // Milliseconds of frequency detector indicating successful match before relay toggle
@@ -342,7 +347,7 @@ TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3 };
 //
 
 struct EepromParameterStruct {
-    uint16_t MillisNeededForValidMatch; // ms needed for accepting match
+    uint16_t MillisNeededForValidMatch; // ms required for accepting match
     uint16_t FrequencyMin;
     uint16_t FrequencyMax;
     uint8_t RelayOnTimeoutIndex;
@@ -381,7 +386,7 @@ struct WhistleSwitchControlStruct {
     uint8_t ButtonPressCounter;
 
     int16_t MatchValidCount; // count for valid matches after last STATE_LED_OFF
-    int16_t MatchValidNeeded; // valid matches detected needed for accepting match, i.e. for toggling relay := MillisNeededForValidMatch/timeOfReading
+    int16_t MatchValidNeeded; // valid matches detected required for accepting match, i.e. for toggling relay := MillisNeededForValidMatch/timeOfReading
     uint16_t MillisNeededForValidMatch;
 
 } WhistleSwitchControl;
@@ -765,23 +770,6 @@ void processMatchState() {
 // Example for placing code at init sections see: http://www.nongnu.org/avr-libc/user-manual/mem_sections.html
 void MyInit(void) __attribute__ ((naked)) __attribute__ ((section (".init8")));
 void MyInit(void) {
-}
-
-/*
- * Get amount of free RAM = Stack - Heap
- */
-uint16_t getFreeRam(void) {
-    extern unsigned int __heap_start;
-    extern void *__brkval;
-
-    uint16_t tFreeRamBytes;
-
-    if (__brkval == 0) {
-        tFreeRamBytes = SP - (int) &__heap_start;
-    } else {
-        tFreeRamBytes = SP - (int) __brkval;
-    }
-    return (tFreeRamBytes);
 }
 
 /*******************************************************************************************
@@ -1267,7 +1255,7 @@ void getAdvancedProgrammingFrequencyRange() {
 #if defined (INFO) && (defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__))
         Serial.println(F("Before the 5 seconds timeout, you may press the button again."));
         Serial.println(
-                F("The duration of this second press is taken as the needed duration for the signal match to toggle the relay."));
+                F("The duration of this second press is taken as the required duration for the signal match to toggle the relay."));
         Serial.println(F("If timeout happens, then 1.2 seconds are taken for duration."));
 #endif
     }
@@ -1366,8 +1354,8 @@ ISR(PCINT0_vect) {
 #  ifdef MEASURE_TIMING
     BIT_SET(TIMING_PORT, TIMING_PIN);
 #  endif
-        PCICR = 0; // disable new PCINT's, since we allow nested interrupts
-        PCIFR = _BV(PCIF2); // Must clear interrupt flag in order to avoid to call this ISR again, when enabling interrupts below.
+    PCICR = 0; // disable new PCINT's, since we allow nested interrupts
+    PCIFR = _BV(PCIF2); // Must clear interrupt flag in order to avoid to call this ISR again, when enabling interrupts below.
 #elif defined(__AVR_ATtiny85__)
     GIMSK &= ~_BV(PCIE); // disable new PCINT's, since we allow nested interrupts
     GIFR = _BV(PCIF); // Must clear interrupt flag in order to avoid to call this ISR again, when enabling interrupts below.
@@ -1380,7 +1368,7 @@ ISR(PCINT0_vect) {
 #  if defined(TIMSK) && defined(TOIE0)
     TIMSK |= _BV(TOIE0); // enable timer0 interrupt for millis()
 #  elif defined(TIMSK0) && defined(TOIE0)
-        TIMSK0 |= _BV(TOIE0);
+    TIMSK0 |= _BV(TOIE0);
 #  else
 #error  Timer 0 overflow interrupt not set correctly
 #  endif
@@ -1427,10 +1415,10 @@ ISR(PCINT0_vect) {
      * Enable Pin Change interrupt again
      */
 #if defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
-        if (IS_BUTTON_ACTIVE == ButtonControl.ButtonStateIsActive) {
-            PCIFR = _BV(PCIF2); // Clear interrupt flag if no state change in order to cancel all interrupts generated by button bouncing
-        }
-        PCICR = _BV(PCIE2); //PCINT2 enable
+    if (IS_BUTTON_ACTIVE == ButtonControl.ButtonStateIsActive) {
+        PCIFR = _BV(PCIF2); // Clear interrupt flag if no state change in order to cancel all interrupts generated by button bouncing
+    }
+    PCICR = _BV(PCIE2); //PCINT2 enable
 #ifdef MEASURE_TIMING
         BIT_CLEAR(TIMING_PORT, TIMING_PIN);
 #endif

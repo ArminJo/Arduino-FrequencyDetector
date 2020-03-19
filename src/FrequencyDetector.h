@@ -35,13 +35,13 @@
  */
 
 //#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
-#if ! defined(FREQUENCY_RANGE_LOW) && ! defined(FREQUENCY_RANGE_HIGH) 
+#if ! defined(FREQUENCY_RANGE_LOW) && ! defined(FREQUENCY_RANGE_HIGH)
 #define FREQUENCY_RANGE_DEFAULT // good for frequencies from 400 to 3000 Hz
 #endif
 //#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 3000 Hz
 
 /*
- * Global settings which are needed at compile time
+ * Global settings which are required at compile time
  */
 /*
  * Number of samples used for detecting the frequency of the signal.
@@ -79,7 +79,7 @@
 #define MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT 200
 
 /*
- * Milliseconds (converted to number of readings) of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+ * Milliseconds (converted to number of readings) of required valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
  */
 #define MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT 150
 
@@ -137,7 +137,7 @@
 
 // number of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
 #define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT ((MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
-// number of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+// number of required valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
 #define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT ((MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
 
 // FrequencyRaw error values
@@ -186,7 +186,7 @@ struct FrequencyDetectorControlStruct {
      */
     uint8_t ADCPrescalerValue;
     uint16_t FrequencyOfOneSample;      // to compute the frequency from the number of samples of one signal wave
-    uint16_t PeriodOfOneSampleMicros;   // to compute the matches needed from the number of loops
+    uint16_t PeriodOfOneSampleMicros;   // to compute the matches required from the number of loops
     uint16_t PeriodOfOneReadingMillis;  // to correct the millis() value after each reading
 
     /*
@@ -227,7 +227,7 @@ struct FrequencyDetectorControlStruct {
     uint16_t FrequencyMatchHigh;
 
     uint8_t MaxMatchDropoutCount; // number of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
-    uint8_t MinMatchNODropoutCount; // number of needed valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
+    uint8_t MinMatchNODropoutCount; // number of required valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
     // INTERNALLY
     // Clipped at MaxMatchDropoutCount + MinMatchNODropoutCount, so at least MinMatchNODropoutCount matches must happen to set FrequencyMatchFiltered not to FREQUENCY_MATCH_INVALID
     uint8_t MatchDropoutCount;      // Current dropout count. If value falls below MaxMatchDropoutCount, filtered match is valid.

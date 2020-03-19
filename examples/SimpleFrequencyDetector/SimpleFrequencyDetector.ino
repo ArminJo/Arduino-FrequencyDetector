@@ -55,13 +55,17 @@
 #define LED_PLAUSI_DISTRIBUTION  8
 
 // Enable this to generate output for Arduino Serial Plotter (Ctrl-Shift-L)
-//#define PRINT_FOR_SERIAL_PLOTTE
-
+//#define PRINT_FOR_SERIAL_PLOTTER
+#define INFO
 #if ! defined(LED_BUILTIN) && defined(ARDUINO_AVR_DIGISPARK)
 #define LED_BUILTIN PB1
 #endif
 
 #include "FrequencyDetector.h"
+
+#if defined(INFO)
+#include "AVRUtils.h" // for getFreeRam()
+#endif
 
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
