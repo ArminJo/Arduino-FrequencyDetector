@@ -242,6 +242,21 @@ struct FrequencyDetectorControlStruct {
     uint8_t MatchLowPassFiltered; // internal value 0 to FILTER_VALUE_MAX/200. Low pass filter value for computing FrequencyMatchFiltered
 };
 
+#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
+// defines are from Arduino.h, the can be used without bit reordering
+#undef EXTERNAL
+#undef INTERNAL1V1
+#undef INTERNAL
+#undef INTERNAL2V56
+#undef INTERNAL2V56_EXTCAP
+//  #define DEFAULT 0
+  #define EXTERNAL 4
+  #define INTERNAL1V1 8
+  #define INTERNAL INTERNAL1V1
+  #define INTERNAL2V56 9
+  #define INTERNAL2V56_EXTCAP 13
+#endif
+
 extern FrequencyDetectorControlStruct FrequencyDetectorControl;
 
 void setFrequencyDetectorControlDefaults();
@@ -257,6 +272,7 @@ uint16_t readSignal();
 uint16_t doPlausi();
 void computeDirectAndFilteredMatch(uint16_t aFrequency);
 
+void printTriggerValues(Print * aSerial);
 void printLegendForArduinoPlotter(Print * aSerial);
 void printDataForArduinoPlotter(Print * aSerial);
 

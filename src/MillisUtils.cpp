@@ -1,8 +1,10 @@
 /*
  *  MillisUtils.cpp
  *
+ *  Unifies millis() timer handling for Digispark, AttinyCore and Arduino cores.
  *  - Start, stop and modify milliseconds timer and value.
- *  - blocking delayMilliseconds() function for use in noInterrupts context like ISR.
+ *  - Functions to compensate millis() timer value after long lasting ISR etc..
+ *  - Blocking delayMilliseconds() function for use in noInterrupts context like ISR.
  *
  *  Copyright (C) 2016-2020  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
@@ -80,10 +82,8 @@ void addToMillis(uint16_t aMillisToAdd) {
  * since the loop last exactly a multiple of 1024 micros, add a few statements between disabling and enabling
  */
 void disableMillisInterrupt() {
-#if defined(TIMSK) && defined(TOIE0)
-    cbi(TIMSK, TOIE0);
-#elif defined(TIMSK0) && defined(TOIE0)
-    cbi(TIMSK0, TOIE0);
+#if defined(TIMSK) && defined(TOIE)
+    cbi(TIMSK, TOIE);
 #else
 #error  Timer 0 overflow interrupt not disabled correctly
 #endif
@@ -93,18 +93,12 @@ void disableMillisInterrupt() {
  * Enable timer 0 overflow interrupt and compensate for disabled timer, if still disabled.
  */
 void enableMillisInterrupt(uint16_t aMillisToAddForCompensation) {
-#if defined(TIMSK) && defined(TOIE0)
-    if ((TIMSK & _BV(TOIE0)) == 0) {
+#if defined(TIMSK) && defined(TOIE)
+    if ((TIMSK & _BV(TOIE)) == 0) {
         // still disabled -> compensate
         timer0_millis += aMillisToAddForCompensation;
     }
-    sbi(TIMSK, TOIE0);
-#elif defined(TIMSK0) && defined(TOIE0)
-    if ((TIMSK0 & _BV(TOIE0)) == 0) {
-        // still disabled -> compensate
-        timer0_millis += aMillisToAddForCompensation;
-    }
-    sbi(TIMSK0, TOIE0);
+    sbi(TIMSK, TOIE);
 #else
 #error  Timer 0 overflow interrupt not enabled correctly
 #endif

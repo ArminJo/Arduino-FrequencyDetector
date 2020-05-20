@@ -24,12 +24,12 @@
 //
 // ATMEL ATTINY85
 //
-//                                        +-\/-+
-//        PCINT5/!RESET/ADC0/dW (5) PB5  1|    |8  Vcc
-// PCINT3/XTAL1/CLKI/!OC1B/ADC3 (3) PB3  2|    |7  PB2 (2) SCK/USCK/SCL/ADC1/T0/INT0/PCINT2
-//  PCINT4/XTAL2/CLKO/OC1B/ADC2 (4) PB4  3|    |6  PB1 (1) MISO/DO/AIN1/OC0B/OC1A/PCINT1 / TX Debug output
-//                                  GND  4|    |5  PB0 (0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0
-//                                        +----+
+//                                               +-\/-+
+//               PCINT5/!RESET/ADC0/dW (5) PB5  1|    |8  VCC
+// USB+   PCINT3/XTAL1/CLKI/!OC1B/ADC3 (3) PB3  2|    |7  PB2 (2) SCK/USCK/SCL/ADC1/T0/INT0/PCINT2 / TX Debug output
+// USB-   PCINT4/XTAL2/CLKO/ OC1B/ADC2 (4) PB4  3|    |6  PB1 (1) MISO/DO/AIN1/OC0B/ OC1A/PCINT1 - (Digispark) LED
+//                                         GND  4|    |5  PB0 (0) MOSI/DI/AIN0/OC0A/!OC1A/SDA/AREF/PCINT0
+//                                               +----+
 
 // ATMEL ATTINY167
 // Pin numbers are for Digispark core

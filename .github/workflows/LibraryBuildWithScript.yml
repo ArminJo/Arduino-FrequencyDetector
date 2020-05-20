@@ -22,11 +22,11 @@ jobs:
   build:
     name: ${{ matrix.arduino-boards-fqbn }} - test compiling examples
 
-    runs-on: ubuntu-latest # I picked Ubuntu to use shell scripts.
+    runs-on: ubuntu-18.04 # I picked Ubuntu to use shell scripts.
 
     env:
       # Comma separated list without double quotes around the list. 
-      REQUIRED_LIBRARIES: ATtinySerialOut
+      REQUIRED_LIBRARIES: # ATtinySerialOut,Adafruit BME280 Library
 
     strategy:
       matrix:
@@ -42,6 +42,7 @@ jobs:
         #############################################################################################################
         arduino-boards-fqbn:
           - arduino:avr:uno
+          - arduino:avr:uno|All-DEBUG
           - digistump:avr:digispark-tiny1
           - ATTinyCore:avr:attinyx5:chip=85,clock=1internal
 
@@ -49,9 +50,15 @@ jobs:
         # With examples-exclude you may exclude specific examples for a board. Use a comma separated list.
         #############################################################################################################
         include:
+          - arduino-boards-fqbn: arduino:avr:uno|All-DEBUG # UNO board with -DDEBUG for all examples
+            examples-exclude: 50Hz # Comma separated list of (unique substrings of) example names to exclude in build
+            examples-build-properties:
+              All:
+                -DDEBUG
+ 
           - arduino-boards-fqbn: digistump:avr:digispark-tiny1  # ATtiny85 board @1 MHz
-            platform-url: http://digistump.com/package_digistump_index.json
-            examples-exclude: Blink
+            platform-url: https://raw.githubusercontent.com/ArminJo/DigistumpArduino/master/package_digistump_index.json
+            sketch-names: WhistleSwitch.ino,SimpleFrequencyDetector.ino,50Hz # Comma separated list of sketch names (no path required) or patterns to use in build
 
           - arduino-boards-fqbn: ATTinyCore:avr:attinyx5:chip=85,clock=1internal
             platform-url: http://drazzy.com/package_drazzy.com_index.json
@@ -63,7 +70,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      # Test of the arduino-test-compile script
+      - name: Checkout custom library
+        uses: actions/checkout@v2
+        with:
+          repository: ArminJo/ATtinySerialOut
+          ref: master
+          path: CustomLibrary
+
+      - name: Checkout second custom library # This name must be different from th one above
+        uses: actions/checkout@v2
+        with:
+          repository: ArminJo/Arduino-Utils
+          ref: master
+          path: SecondCustomLibrary # This path must be different from th one above
+
+      # Use the arduino-test-compile script, because it is faster
       - name: Compile all examples using the bash script arduino-test-compile.sh
         env:
           # Passing parameters to the script by setting the appropriate ENV_* variables.
@@ -72,6 +93,9 @@ jobs:
           ENV_REQUIRED_LIBRARIES: ${{ env.REQUIRED_LIBRARIES }}
           ENV_EXAMPLES_EXCLUDE: ${{ matrix.examples-exclude }}
           ENV_EXAMPLES_BUILD_PROPERTIES: ${{ toJson(matrix.examples-build-properties) }}
+          ENV_SKETCH_NAMES: ${{ matrix.sketch-names }}
+          ENV_SKETCH_NAMES_FILE_START: .
+
         run: |
           wget --quiet https://raw.githubusercontent.com/ArminJo/arduino-test-compile/master/arduino-test-compile.sh
             ls -l arduino-test-compile.sh
