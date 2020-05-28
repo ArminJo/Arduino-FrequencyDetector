@@ -25,6 +25,7 @@
 #define MILLIS_UTILS_H_
 
 #include <stdint.h>
+#if defined(__AVR__)
 
 //void speedTestWith1kCalls(void (*aFunctionUnderTest)(void));
 
@@ -50,6 +51,8 @@ extern volatile unsigned long timer0_millis;
 void disableMillisInterrupt();
 void addToMillis(uint16_t aMillisToAdd);
 void enableMillisInterrupt(uint16_t aMillisToAddForCompensation = 0);
+#endif //  defined(__AVR__)
+
 void delayMilliseconds(unsigned int aMillis);
 bool areMillisGone(unsigned int aMillis);
 bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr);

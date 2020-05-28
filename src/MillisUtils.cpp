@@ -26,6 +26,7 @@
  *
  */
 
+#if defined(__AVR__)
 #include <Arduino.h>
 
 #include "MillisUtils.h"
@@ -104,6 +105,8 @@ void enableMillisInterrupt(uint16_t aMillisToAddForCompensation) {
 #endif
 }
 
+#endif //  defined(__AVR__)
+#if ! defined(TEENSYDUINO)
 void delayMilliseconds(unsigned int aMillis) {
     for (unsigned int i = 0; i < aMillis; ++i) {
         delayMicroseconds(1000);
@@ -111,8 +114,8 @@ void delayMilliseconds(unsigned int aMillis) {
 }
 
 /*
- * returns true if aMillis were gone after last return of true
- * Can be used as a non blocking replacement for delay()
+ * returns true if aMillis were gone after the last return of true
+ * Can be used as a correct non blocking replacement for delay()
  * Simple version, which can only be used at one place in code because of static variable.
  */
 bool areMillisGone(unsigned int aMillis) {
@@ -131,3 +134,4 @@ bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr) {
     }
     return false;
 }
+#endif // ! defined(TEENSYDUINO)

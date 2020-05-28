@@ -9,7 +9,7 @@
 
 # This is the name of the workflow, visible on GitHub UI.
 name: LibraryBuildWithScript
-on:  
+on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     paths:
     - '**.ino'
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-18.04 # I picked Ubuntu to use shell scripts.
 
     env:
-      # Comma separated list without double quotes around the list. 
+      # Comma separated list without double quotes around the list.
       REQUIRED_LIBRARIES: # ATtinySerialOut,Adafruit BME280 Library
 
     strategy:
@@ -53,9 +53,9 @@ jobs:
           - arduino-boards-fqbn: arduino:avr:uno|All-DEBUG # UNO board with -DDEBUG for all examples
             examples-exclude: 50Hz # Comma separated list of (unique substrings of) example names to exclude in build
             examples-build-properties:
-              All:
-                -DDEBUG
- 
+              All: -DDEBUG -DINFO
+              WhistleSwitch: -DDEBUG -DINFO
+
           - arduino-boards-fqbn: digistump:avr:digispark-tiny1  # ATtiny85 board @1 MHz
             platform-url: https://raw.githubusercontent.com/ArminJo/DigistumpArduino/master/package_digistump_index.json
             sketch-names: WhistleSwitch.ino,SimpleFrequencyDetector.ino,50Hz # Comma separated list of sketch names (no path required) or patterns to use in build
@@ -101,4 +101,3 @@ jobs:
             ls -l arduino-test-compile.sh
             chmod +x arduino-test-compile.sh
             ./arduino-test-compile.sh
-          

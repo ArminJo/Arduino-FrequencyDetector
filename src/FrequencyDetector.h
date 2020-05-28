@@ -26,13 +26,40 @@
 #ifndef FREQUENCYDETECTOR_H_
 #define FREQUENCYDETECTOR_H_
 
+#define VERSION_FREQUENCY_DETECTOR "2.0.0"
+#define VERSION_FREQUENCY_DETECTOR_MAJOR 2
+#define VERSION_FREQUENCY_DETECTOR_MINOR 0
+
 /*
+ * Version 2.0.0 - 5/2020
+ * - Renamed `doPlausi()` to `doEqualDistributionPlausi()`.
+ * - Changed error values and computation.
+ * - Added documentation.
+ * - Added MEASURE_READ_SIGNAL_TIMING capability.
+ * - Added plotter output of input signal.
+ *
  * Version 1.1.0 - 1/2020
  * - Corrected formula for compensating millis().
  * - New field PeriodOfOneReadingMillis.
  * - Now accept dropout values in milliseconds.
  * - New functions printLegendForArduinoPlotter() and printDataForArduinoPlotter().
  */
+
+#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
+#include "ATtinySerialOut.h" // Available as Arduino library and contained in WhistleSwitch example.
+#define SIGNAL_BUFFER_SIZE 100
+#else
+#define SIGNAL_BUFFER_SIZE NUMBER_OF_SAMPLES
+#endif
+
+// If enabled, store first input samples for printing to Arduino Plotter
+//#define PRINT_INPUT_SIGNAL_TO_PLOTTER
+
+// Enable this to print generated output to Arduino Serial Plotter (Ctrl-Shift-L)
+//#define PRINT_RESULTS_TO_SERIAL_PLOTTER
+#if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER) && defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
+#error Please define only one of PRINT_INPUT_SIGNAL_TO_PLOTTER and PRINT_RESULTS_TO_SERIAL_PLOTTER
+#endif
 
 //#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
 #if ! defined(FREQUENCY_RANGE_LOW) && ! defined(FREQUENCY_RANGE_HIGH)
@@ -54,12 +81,16 @@
 //#define NUMBER_OF_SAMPLES 1024
 
 /*
- * Defaults for plausibility
+ * Default values for plausibility, you may change them if necessary
  */
 #define MIN_SAMPLES_PER_PERIOD 8   // => Max frequency is 2403 Hz at 52 usec/sample, 9612 Hz at 13 usec/sample
-// Fixed values for plausibility
-#define LEADING_TRAILING_TRIGGER_MARGIN (NUMBER_OF_SAMPLES / 8) // Margin for doPlausi() where at least one trigger (eg. TriggerFirstPosition) must be detected
-#define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_SAMPLES / MIN_SAMPLES_PER_PERIOD)
+/*
+ * For n signal periods we have 2n or (2n + 1) trigger
+ * 8 trigger per buffer = 512/4=128 samples per period -> 150 Hz for 52 usec/sample, 600 Hz for 13 usec/sample.
+ * So we have 150 to 2403 Hz at 52 usec/sample and 512 buffer
+ */
+#define MINIMUM_NUMBER_OF_TRIGGER_PER_BUFFER 8 // => Min frequency is 150 Hz at 52 usec/sample, 600 Hz at 13 usec/sample for 512 buffer size
+#define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_SAMPLES / MIN_SAMPLES_PER_PERIOD) // 512 / 8 = 64
 
 /*
  * Defaults for reading
@@ -124,7 +155,7 @@
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 13 microseconds per ADC sample at 8 Mhz Clock => 76.923 kHz sample rate
 #define MICROS_PER_SAMPLE 13
 #  elif F_CPU == 1000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE2 // 26 microseconds per ADC sample at 1 Mhz Clock => 38.461 kHz sample rate
+# error "At 1 MHz a sampling time of 26 microseconds can not be achieved. Increase F_CPU to 8000000."
 #define MICROS_PER_SAMPLE 26
 #  endif
 #endif
@@ -140,27 +171,29 @@
 // number of required valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
 #define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT ((MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
 
-// FrequencyRaw error values
+/*
+ * FrequencyRaw error values
+ */
 #define SIGNAL_NO_TRIGGER 0
 #define SIGNAL_STRENGTH_LOW 1
-// You get this error code if no trigger occurs in the first or last 128 samples because signal is noisy or or only a burst
-#define SIGNAL_FIRST_LAST_PLAUSI_FAILED 2
+// TOO_LOW - You get this error code if less than MINIMUM_NUMBER_OF_TRIGGER_PER_BUFFER (8) trigger occurs in the buffer
+#define SIGNAL_FREQUENCY_TOO_LOW 2
+// TOO_HIGH - You get this error code if more than SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI trigger occurs in the buffer, i.e. less than MIN_SAMPLES_PER_PERIOD used for each sample
+#define SIGNAL_FREQUENCY_TOO_HIGH 3
 // You get this error code if more than 1/8 of the samples are greater than 1.5 or less than 0.75 of the average period
-#define SIGNAL_DISTRIBUTION_PLAUSI_FAILED 3
-#define SIGNAL_MAX_ERROR_CODE 3 // the highest error value
+#define SIGNAL_DISTRIBUTION_PLAUSI_FAILED 4
+#define SIGNAL_MAX_ERROR_CODE 4 // the highest error value
 
 const char ErrorString_0[] PROGMEM = "No trigger";
 const char ErrorString_1[] PROGMEM = "Signal low";
-const char ErrorString_2[] PROGMEM = "No signal zero crossing at start or end of sample";
-const char ErrorString_3[] PROGMEM = "Periods between signal zero crossing during the sample are too different";
+const char ErrorString_2[] PROGMEM = "Frequency too low";
+const char ErrorString_3[] PROGMEM = "Frequency too high / noise";
+const char ErrorString_4[] PROGMEM = "Periods too different";
 extern const char *ErrorStrings[SIGNAL_MAX_ERROR_CODE + 1];
 
-const char ErrorStringShort_2[] PROGMEM = "No 0 xing at start or end";
-const char ErrorStringShort_3[] PROGMEM = "Periods too different";
-extern const char *ErrorStringsShort[SIGNAL_MAX_ERROR_CODE + 1];
-// Result values for Match*
+// Result values for Match*. Use compiler switch -fshort-enums otherwise it inflates the generated code
 enum MatchStateEnum {
-    FREQUENCY_MATCH_INVALID /*Errors have happened*/, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
+    FREQUENCY_MATCH_INVALID /*Errors have happened*/, FREQUENCY_MATCH_TO_LOW, FREQUENCY_MATCH, FREQUENCY_MATCH_TO_HIGH
 };
 
 /*
@@ -211,11 +244,11 @@ struct FrequencyDetectorControlStruct {
     uint16_t AverageLevel;  // = SumOfSampleValues / NumberOfSamples
 
     /*
-     * Values computed by readSignal() to be used by doPlausi()
+     * Values computed by readSignal() to be used by doEqualDistributionPlausi()
      */
-    uint16_t FrequencyRaw;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doPlausi()
-    uint8_t PeriodCount; // Count of periods in current reading - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1)!!!
-    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_SAMPLES / 8
+    uint16_t FrequencyRaw;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doEqualDistributionPlausi()
+    uint8_t PeriodCount; // Count of periods in current reading - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1) (=63) !!!
+    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_SAMPLES(512) / 8 (= 64)
     uint16_t TriggerFirstPosition; // position of first detection of a trigger in all samples
     uint16_t TriggerLastPosition;  // position of last detection of a trigger in all samples
 
@@ -232,12 +265,11 @@ struct FrequencyDetectorControlStruct {
     // Clipped at MaxMatchDropoutCount + MinMatchNODropoutCount, so at least MinMatchNODropoutCount matches must happen to set FrequencyMatchFiltered not to FREQUENCY_MATCH_INVALID
     uint8_t MatchDropoutCount;      // Current dropout count. If value falls below MaxMatchDropoutCount, filtered match is valid.
 
-
     // OUTPUT
     uint16_t FrequencyFiltered;   // Low pass filter value for frequency, e.g. to compute stable difference to target frequency.
 
-    MatchStateEnum FrequencyMatchDirect; // Result of match: 0 to 3, FREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_LOWER, FREQUENCY_MATCH, FREQUENCY_MATCH_HIGHER
-    MatchStateEnum FrequencyMatchFiltered; // same range asFrequencyMatchDirect. Match state processed by low pass filter
+    uint8_t FrequencyMatchDirect; // Result of match: 0 to 3, FREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_TO_LOW, FREQUENCY_MATCH, FREQUENCY_MATCH_TO_HIGH
+    uint8_t FrequencyMatchFiltered; // same range asFrequencyMatchDirect. Match state processed by low pass filter
     // INTERNALLY
     uint8_t MatchLowPassFiltered; // internal value 0 to FILTER_VALUE_MAX/200. Low pass filter value for computing FrequencyMatchFiltered
 };
@@ -269,11 +301,26 @@ void setFrequencyDetectorDropoutCounts(uint8_t aMinMatchNODropoutCount, uint8_t 
 bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_t aMaxMatchDropoutMillis);
 
 uint16_t readSignal();
-uint16_t doPlausi();
+uint16_t doEqualDistributionPlausi();
 void computeDirectAndFilteredMatch(uint16_t aFrequency);
 
+
+#if (defined(VERSION_ATTINY_SERIAL_OUT_MAJOR))
+void printTriggerValues(TinySerialOut * aSerial);
+void printPeriodLengthArray(TinySerialOut * aSerial);
+void printLegendForArduinoPlotter(TinySerialOut * aSerial);
+void printDataForArduinoPlotter(TinySerialOut * aSerial);
+#  if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
+void printInputSignalValuesForArduinoPlotter(TinySerialOut * aSerial);
+#  endif
+#else
 void printTriggerValues(Print * aSerial);
+void printPeriodLengthArray(Print * aSerial);
 void printLegendForArduinoPlotter(Print * aSerial);
 void printDataForArduinoPlotter(Print * aSerial);
+#  if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
+void printInputSignalValuesForArduinoPlotter(Print * aSerial);
+#  endif
+#endif
 
 #endif /* FREQUENCYDETECTOR_H_ */

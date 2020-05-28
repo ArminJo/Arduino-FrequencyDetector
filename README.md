@@ -28,7 +28,7 @@ The alternative to disabling the interrupt is getting partially invalid results!
   3. Average = (SumOfSampleValues / NumberOfSamples) `uint16_t AverageLevel;`
   4. The length of each period (between 2 trigger conditions) in the `PeriodLength[]` array.
 
-### `doPlausi()` checks if the signal in the `PeriodLength[]` array is not noisy and valid. It uses the following plausibility rules:
+### `doEqualDistributionPlausi()` checks if the signal in the `PeriodLength[]` array is not noisy and valid. It uses the following plausibility rules:
   1. A trigger must be detected in first and last 1/8 of samples.
   2. Only 1/8 of the samples are allowed to be greater than 1.5 or less than 0.75 of the average period.
   In case of failure, the value of `FrequencyRaw` is overwritten with the error code.
@@ -38,6 +38,8 @@ and also low pass filters the result for smooth transitions between the 3 match 
   1. Low pass filtered frequency of signal `uint16_t FrequencyFiltered;`
   2. Match result `MatchStateEnum FrequencyMatchDirect;`
   3. Low pass filtered match result `MatchStateEnum FrequencyMatchFiltered`
+
+### By enabling `PRINT_INPUT_SIGNAL_TO_PLOTTER` with the Arduino Serial Plotter it can be used as a simple oscilloscope.
 
 # SimpleFrequencyDetector example
 This example reads analog signal e.g. from MAX9814 Module at A1 and computes the frequency.
@@ -118,14 +120,8 @@ The setting is stored in EEPROM. Default is `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3` 
 A reset can be performed by power off/on or by pressing the button two times, each time shorter than `RESET_ENTER_BUTTON_PUSH_MILLIS` (0.12 seconds) within a `RESET_WAIT_TIMEOUT_MILLIS` (0.3 seconds) interval.
 
 ## Using a Digispark board
-If you enable `INFO`, the program will be too big for the Digispark board in the Arduino IDE, since it is checked against the old (pre V2) bootloader size.<br/>
-If you want `INFO` on the ATtiny85, first use the ATtiny25/45/85 at 1MHz from the ATTinyCore in the Arduino Board manager, since this leads to smaller code size - 6996/5184 compared to 6152/5914 with `INFO` enabled/disabled.<br/>
-Second, upgrade the micronucleus bootloader on the digispark board with *https://github.com/ArminJo/micronucleus-firmware/tree/master/firmware/upgrades/upgrade-t85_default.hex*.<br/>
-Load the new bootloader with `%UserProfile%\AppData\Local\Arduino15\packages\digistump\tools\micronucleus\2.0a4\launcher.exe -cdigispark -Uflash:w:upgrade-t85_default.hex:i`, this gives additional 500 bytes more program space.<br/>
-Then create the hex file by pressing the upload button in the Arduino IDE.
-The upload will fail, but in one of the last lines in the console you will find the filename of the hex file e.g. *C:\\Users\\<username>\\AppData\\Local\\Temp\\arduino_build_**12345**\\WhistleSwitch.ino.hex*.<br/>
-You can then upload the hex program file manually with e.g.:
-`%UserProfile%\AppData\Local\Arduino15\packages\digistump\tools\micronucleus\2.0a4\launcher.exe -cdigispark -Uflash:w:%UserProfile%\\AppData\\Local\\Temp\\arduino_build_12345\\WhistleSwitch.ino.hex:i`
+First install the new [Digistump AVR version 1.6.8](https://github.com/ArminJo/DigistumpArduino#installation) and [update the bootloader](https://github.com/ArminJo/DigistumpArduino#update-the-bootloader).
+This enables to have `INFO` outputs on the ATtiny85<br/>
 
 # SCHEMATIC for external components of FrequencyDetector / WhistleSwitch
 ```
@@ -173,6 +169,14 @@ MAX4466 / 9814 MICROPHONE  | | 1M
 ```
 
 # Revision History
+### Version 2.0.0
+- Renamed `doPlausi()` to `doEqualDistributionPlausi()`.
+- Changed [error values](src/FrequencyDetector.h#L170) and computation.
+- Added documentation.
+- Added [`MEASURE_READ_SIGNAL_TIMING`](src/FrequencyDetector.h#L64) capability.
+- Added plotter output of input signal.
+- Adapted [WhistleSwitch example](examples/WhistleSwitch) to [`EasyButtonAtInt01`](https://github.com/ArminJo/EasyButtonAtInt01) library.
+
 ### Version 1.1.1
 - Moved libraries for WhistleSwitch example.
 
