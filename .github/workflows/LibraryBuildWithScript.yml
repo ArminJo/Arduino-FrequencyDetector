@@ -26,7 +26,7 @@ jobs:
 
     env:
       # Comma separated list without double quotes around the list.
-      REQUIRED_LIBRARIES: # ATtinySerialOut,Adafruit BME280 Library
+      REQUIRED_LIBRARIES: #ATtinySerialOut
 
     strategy:
       matrix:
@@ -70,19 +70,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Checkout custom library
+      - name: Checkout master version of ATtinySerialOut
         uses: actions/checkout@v2
         with:
           repository: ArminJo/ATtinySerialOut
           ref: master
-          path: CustomLibrary
+          path: CustomLibrary # must contain string "Custom"
 
-      - name: Checkout second custom library # This name must be different from th one above
-        uses: actions/checkout@v2
-        with:
-          repository: ArminJo/Arduino-Utils
-          ref: master
-          path: SecondCustomLibrary # This path must be different from th one above
+#      - name: Checkout second custom library # This name must be different from th one above
+#        uses: actions/checkout@v2
+#        with:
+#          repository: ArminJo/Arduino-Utils
+#          ref: master
+#          path: SecondCustomLibrary # This path must be different from theone above but also must contain string "Custom"
 
       # Use the arduino-test-compile script, because it is faster
       - name: Compile all examples using the bash script arduino-test-compile.sh

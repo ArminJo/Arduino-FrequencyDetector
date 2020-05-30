@@ -71,7 +71,7 @@
 
 FrequencyDetectorControlStruct FrequencyDetectorControl;
 
-const char *ErrorStrings[] = { ErrorString_0, ErrorString_1, ErrorString_2, ErrorString_3, ErrorString_4 };
+const char* ErrorStrings[] = { ErrorString_0, ErrorString_1, ErrorString_2, ErrorString_3, ErrorString_4 };
 
 // Union to speed up the combination of low and high bytes to a word
 // it is not optimal since the compiler still generates 2 unnecessary moves
@@ -510,12 +510,7 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
-#if (defined(VERSION_ATTINY_SERIAL_OUT_MAJOR)) // used as flag, that we compile with the ATtinySerialOut library and can use TinySerialOut
-void printPeriodLengthArray(TinySerialOut * aSerial)
-#else
-void printPeriodLengthArray(Print * aSerial)
-#endif
-        {
+void printPeriodLengthArray(Print * aSerial) {
     /*
      * Print frequency or error code
      */
@@ -541,12 +536,7 @@ void printPeriodLengthArray(Print * aSerial)
 }
 
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
-#  if (defined(VERSION_ATTINY_SERIAL_OUT_MAJOR)) // used as flag, that we compile with the ATtinySerialOut library and can use TinySerialOut
-void printInputSignalValuesForArduinoPlotter(TinySerialOut * aSerial)
-#  else
-void printInputSignalValuesForArduinoPlotter(Print * aSerial)
-#  endif
-        {
+void printInputSignalValuesForArduinoPlotter(Print * aSerial) {
     aSerial->print(F("InputValue TriggerLevel="));
     aSerial->print(FrequencyDetectorControl.TriggerLevel);
     aSerial->print(F("  TriggerLevelLower="));
@@ -570,35 +560,20 @@ void printInputSignalValuesForArduinoPlotter(Print * aSerial)
 }
 #endif
 
-#if (defined(VERSION_ATTINY_SERIAL_OUT_MAJOR)) // used as flag, that we compile with the ATtinySerialOut library and can use TinySerialOut
-void printTriggerValues(TinySerialOut * aSerial)
-#else
-void printTriggerValues(Print * aSerial)
-#endif
-        {
+void printTriggerValues(Print * aSerial) {
     aSerial->print(F("TriggerLower="));
     aSerial->print(FrequencyDetectorControl.TriggerLevelLower);
     aSerial->print(" Upper=");
     aSerial->println(FrequencyDetectorControl.TriggerLevel);
 }
 
-#if (defined(VERSION_ATTINY_SERIAL_OUT_MAJOR)) // used as flag, that we compile with the ATtinySerialOut library and can use TinySerialOut
-void printLegendForArduinoPlotter(TinySerialOut * aSerial)
-#else
-void printLegendForArduinoPlotter(Print * aSerial)
-#endif
-        {
+void printLegendForArduinoPlotter(Print * aSerial) {
     aSerial->println(
             F(
                     "FrequencyMatchDirect*95 MatchDropoutCount*13  MatchLowPassFiltered*2 FrequencyMatchFiltered*100 FrequencyRaw FrequencyFiltered"));
 }
 
-#if (defined(VERSION_ATTINY_SERIAL_OUT_MAJOR)) // used as flag, that we compile with the ATtinySerialOut library and can use TinySerialOut
-void printDataForArduinoPlotter(TinySerialOut * aSerial)
-#else
-void printDataForArduinoPlotter(Print * aSerial)
-#endif
-        {
+void printDataForArduinoPlotter(Print * aSerial) {
     static uint8_t sConsecutiveErrorCount = 0; // Print only 10 errors, then stop
 
     if (sConsecutiveErrorCount >= 10) {

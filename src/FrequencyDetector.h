@@ -274,19 +274,28 @@ struct FrequencyDetectorControlStruct {
     uint8_t MatchLowPassFiltered; // internal value 0 to FILTER_VALUE_MAX/200. Low pass filter value for computing FrequencyMatchFiltered
 };
 
+/*
+ * Reference shift values are complicated for ATtinyX5 since we have the extra register bit REFS2
+ * in ATTinyCore, this bit is handled programmatical and therefore the defines are different.
+ * To keep my library small, I use the changed defines.
+ * After including this file you can not call the ATTinyCore readAnalog functions reliable, if you specify references other than default!
+ */
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
 // defines are from Arduino.h, the can be used without bit reordering
+#ifdef ATTINY_CORE
+#undef DEFAULT
 #undef EXTERNAL
 #undef INTERNAL1V1
 #undef INTERNAL
 #undef INTERNAL2V56
 #undef INTERNAL2V56_EXTCAP
-//  #define DEFAULT 0
-  #define EXTERNAL 4
-  #define INTERNAL1V1 8
-  #define INTERNAL INTERNAL1V1
-  #define INTERNAL2V56 9
-  #define INTERNAL2V56_EXTCAP 13
+#endif
+#define DEFAULT 0
+#define EXTERNAL 4
+#define INTERNAL1V1 8
+#define INTERNAL INTERNAL1V1
+#define INTERNAL2V56 9
+#define INTERNAL2V56_EXTCAP 13
 #endif
 
 extern FrequencyDetectorControlStruct FrequencyDetectorControl;
@@ -305,22 +314,12 @@ uint16_t doEqualDistributionPlausi();
 void computeDirectAndFilteredMatch(uint16_t aFrequency);
 
 
-#if (defined(VERSION_ATTINY_SERIAL_OUT_MAJOR))
-void printTriggerValues(TinySerialOut * aSerial);
-void printPeriodLengthArray(TinySerialOut * aSerial);
-void printLegendForArduinoPlotter(TinySerialOut * aSerial);
-void printDataForArduinoPlotter(TinySerialOut * aSerial);
-#  if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
-void printInputSignalValuesForArduinoPlotter(TinySerialOut * aSerial);
-#  endif
-#else
 void printTriggerValues(Print * aSerial);
 void printPeriodLengthArray(Print * aSerial);
 void printLegendForArduinoPlotter(Print * aSerial);
 void printDataForArduinoPlotter(Print * aSerial);
-#  if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
+#if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
 void printInputSignalValuesForArduinoPlotter(Print * aSerial);
-#  endif
 #endif
 
 #endif /* FREQUENCYDETECTOR_H_ */

@@ -1,7 +1,7 @@
 # [Frequency Detector](https://github.com/ArminJo/Arduino-FrequencyDetector) Library for Arduino and ATtinys
 Available as Arduino library "FrequencyDetector"
 
-### [Version 1.1.1](https://github.com/ArminJo/Arduino-FrequencyDetector/releases)
+### [Version 2.0.0](https://github.com/ArminJo/Arduino-FrequencyDetector/releases)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
@@ -40,6 +40,9 @@ and also low pass filters the result for smooth transitions between the 3 match 
   3. Low pass filtered match result `MatchStateEnum FrequencyMatchFiltered`
 
 ### By enabling `PRINT_INPUT_SIGNAL_TO_PLOTTER` with the Arduino Serial Plotter it can be used as a simple oscilloscope.
+
+# Dependencies
+The [ATtinySerialOut library](https://github.com/ArminJo/ATtinySerialOut) is required for [print functions](src/FrequencyDetector.h#L308) on ATtinies.
 
 # SimpleFrequencyDetector example
 This example reads analog signal e.g. from MAX9814 Module at A1 and computes the frequency.

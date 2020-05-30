@@ -121,28 +121,13 @@
 #error "Code size of this example is too large to fit in an ATtiny 25 or 45."
 #endif
 
-#if defined(__AVR_ATtiny85__)
-//#define MEASURE_TIMING // not activated yet since there is no timing pin left
-
-//#define TRACE
-//#define DEBUG
-#define INFO
-#include "DebugLevel.h" // to propagate above debug levels
-
-#  if defined(INFO)
-#include "ATtinySerialOut.h" // Available as Arduino library and contained in WhistleSwitch example.
-#  endif
-
-#else
 //#define PRINT_RESULTS_TO_SERIAL_PLOTTER
-//#define MEASURE_TIMING
+//#define MEASURE_TIMING // do not activate for ATTinies since there is no timing pin left
 
 //#define TRACE
 //#define DEBUG
 #define INFO
 #include "DebugLevel.h" // to propagate above debug levels
-
-#endif // defined(__AVR_ATtiny85__)
 
 /*
  * I can whistle from 550 to 1900 Hz (and do it easy from 950 - 1800)
@@ -309,7 +294,9 @@ EasyButton ButtonAtPin3(false, &handleButtonPress, &handleButtonRelease); // fal
 #define MATCH_TO_LONG_MILLIS        1000    // max milliseconds for match condition true after relay toggled, otherwise switch back to relay state before
 #define RELAY_DEAD_MILLIS           800    // min milliseconds between 2 changes of relay state -> to avoid to fast relay switching
 #define BUTTON_DEBOUNCE_MILLIS      40      // must be smaller than 65 since delay micros has its limitations at 64k!
-
+#if RELAY_DEAD_MILLIS >= MATCH_TO_LONG_MILLIS
+#error MATCH_TO_LONG_MILLIS must be grater than RELAY_DEAD_MILLIS, otherwise toggling back on long match is rejected
+#endif
 // Timeout for relay ON
 #define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_MAX (1193 * 60) // -> 49.7 days
 // after this time, the relay is switched OFF and ON to signal timeout
@@ -375,7 +362,8 @@ struct WhistleSwitchControlStruct {
 
     uint32_t MillisAtLastRelayChange;
     //
-    bool RelayJustToggled; // do only one toggle per match
+    bool RelayJustToggled; // do only one toggle per consecutive matches
+    bool sMatchTooLongDetected;
     //
     bool TimeoutSignaledOnce;  // to signal timeout reaching only once -> see TIMEOUT_RELAY_ON_SIGNAL_MINUTES
     uint8_t RelayOnTimeoutIndex; // index into sTimeoutRelayOnMinutesArray. 0 = disabled
@@ -395,18 +383,9 @@ struct LedControlStruct {
     uint32_t MillisAtLastLEDChange;
 } LedControl;
 
-//
-//struct ButtonAtPin3Struct {
-//    volatile bool ButtonStateIsActive;          // negative logic: 1 / true / active means button pin is LOW
-//    volatile bool ButtonStateHasJustChanged;    // Flag to enable action only once
-//    volatile long ButtonLastChangeMillis;       // for debouncing
-//    volatile uint32_t ButtonReleaseMillis;      // for double press recognition for reset
-//    /*
-//     * Duration is set at button release or from an outside loop which polls the button state in order to check for button press timeouts,
-//     * since we get no interrupt until button is released.
-//     */
-//    volatile uint16_t ButtonPressDurationMillis; // Duration of active state.
-//} ButtonAtPin3;
+#if defined(INFO)
+uint16_t sLastAverageLevel; // for printSignalInfos
+#endif
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
@@ -419,6 +398,7 @@ void detectSimpleProgrammingStateTimeout();
 void detectFrequency();
 void checkForRelayOnTimeout();
 void doReset();
+void printSignalInfos();
 
 /*
  * aLedBlinkCount = -1 -> blink forever
@@ -581,7 +561,6 @@ void signalTimeoutByLed() {
  * enables relay dead time TIMING_RELAY_DEAD_MILLIS
  */
 void toggleRelay() {
-    static bool sMatchTooLongDetected;
 
 #if defined (DEBUG)
     Serial.print(F("In toggleRelay() RelayJustToggled="));
@@ -591,11 +570,11 @@ void toggleRelay() {
 
     if (WhistleSwitchControl.TimeoutSignaledOnce) {
 #if defined (INFO)
-        Serial.println(F("Reset timeout"));
+        Serial.println(F("Reset relay timeout"));
 #endif
         /*
          * Reset timeout
-         * Here we take the next match after signaling timeout as cancellation of the timeout.
+         * Here we take the next match after signaling relay timeout as cancellation of the timeout.
          */
         // Signal cancellation by LED.
         for (int i = 0; i < 5; ++i) {
@@ -610,40 +589,27 @@ void toggleRelay() {
         WhistleSwitchControl.MillisAtLastRelayChange = millis();
 
     } else {
-        uint32_t tMillisSinceLastRelayChange = millis() - WhistleSwitchControl.MillisAtLastRelayChange;
-        if (!WhistleSwitchControl.RelayJustToggled) {
-            if (tMillisSinceLastRelayChange > RELAY_DEAD_MILLIS) {
-                /*
-                 * set output relay once
-                 */
-                sMatchTooLongDetected = false;
-                digitalToggleFast(RELAY_OUT);
-#if defined (INFO)
-                Serial.println(F("Toggle relay now"));
-#endif
-                WhistleSwitchControl.MillisAtLastRelayChange = millis();
-            } else {
-#if defined (INFO)
-                Serial.println(F("In relay dead time -> do not toggle"));
-#endif
-            }
-        } else if (!sMatchTooLongDetected && tMillisSinceLastRelayChange > MATCH_TO_LONG_MILLIS) {
+        if (millis() - WhistleSwitchControl.MillisAtLastRelayChange > RELAY_DEAD_MILLIS) {
             /*
-             * match lasted too long, reset relay to previous state only once
+             * set output relay once
              */
-#if defined (INFO)
-            Serial.println(F("Match too long, switch to previous state"));
-#endif
             digitalToggleFast(RELAY_OUT);
-            sMatchTooLongDetected = true; // switch back only once
+            WhistleSwitchControl.RelayJustToggled = true;
+#if defined (INFO)
+            Serial.println(F("Toggle relay now"));
+            sLastAverageLevel = 0; // To trigger printSignalInfos() in order to have information about signal level
+#endif
+            WhistleSwitchControl.MillisAtLastRelayChange = millis();
+        } else {
+#if defined (INFO)
+            Serial.println(F("In relay dead time -> do not toggle"));
+#endif
         }
-
     }
-    WhistleSwitchControl.RelayJustToggled = true;
 }
 
 /*
- * process FrequencyMatchFiltered
+ * Process FrequencyMatchFiltered
  * set led blinking and count valid matches until toggling relay
  */
 void processMatchState() {
@@ -691,13 +657,45 @@ void processMatchState() {
         /*
          * valid match here  - "RelayJustToggled = true" is be set in toggleRelay()
          */
-        toggleRelay();
+        if (!WhistleSwitchControl.RelayJustToggled) { // switch only once
+#if defined(INFO)
+            Serial.print(F("Frequency="));
+            Serial.print(FrequencyDetectorControl.FrequencyRaw);
+            Serial.print(F(" matched. Match count="));
+            Serial.println(WhistleSwitchControl.MatchValidCount);
+#endif
+            toggleRelay();
+            WhistleSwitchControl.sMatchTooLongDetected = false;
+
+        } else if (!WhistleSwitchControl.sMatchTooLongDetected
+                && millis() - WhistleSwitchControl.MillisAtLastRelayChange > MATCH_TO_LONG_MILLIS) {
+            /*
+             * match lasted too long, reset relay to previous state only once
+             */
+#if defined (INFO)
+            Serial.println(F("Match too long, switch to previous state"));
+#endif
+            toggleRelay();
+            WhistleSwitchControl.sMatchTooLongDetected = true; // switch back only once
+        }
     } else {
-        WhistleSwitchControl.RelayJustToggled = false;
+        WhistleSwitchControl.RelayJustToggled = false; // no match, reset flag to enable next toggle
     }
 }
 
-#ifdef DEBUG
+/*
+ * Info output for evaluating the signal received
+ */
+void printSignalInfos() {
+    Serial.print(F("Trg="));
+    Serial.print(FrequencyDetectorControl.TriggerLevel);
+    Serial.print(F(" Avg="));
+    Serial.print(FrequencyDetectorControl.AverageLevel);
+    Serial.print(F(" D="));
+    Serial.println(FrequencyDetectorControl.SignalDelta);
+
+}
+
 void printInfos() {
     static uint16_t sFrequencyFilteredPrinted;
     static uint16_t sFrequencyPrinted;
@@ -758,7 +756,6 @@ void printInfos() {
 #  endif // TRACE
     }
 }
-#endif // DEBUG
 
 // Example for placing code at init sections see: http://www.nongnu.org/avr-libc/user-manual/mem_sections.html
 void MyInit(void) __attribute__ ((naked)) __attribute__ ((section (".init8")));
@@ -776,7 +773,7 @@ void setup() {
     if (MCUSR != 0) {
         tMCUSRStored = MCUSR; // content of MCUSR register at startup
     } else {
-        tMCUSRStored = OCR1C; // Micronucleus puts a copy here
+        tMCUSRStored = OCR1C; // Micronucleus puts a copy here if bootloader is in ENTRY_EXT_RESET mode
     }
 #  else
     uint8_t tMCUSRStored = MCUSR; // content of MCUSR register at startup
@@ -1015,14 +1012,24 @@ void detectFrequency() {
             digitalWriteFast(TIMING_OUTPUT_PIN, LOW);
 #endif
 
-#if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
-    printInputSignalValuesForArduinoPlotter(&Serial);
-#endif
-
     /*
      * plausibility check
      */
     tFrequency = doEqualDistributionPlausi();
+
+#if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
+    printInputSignalValuesForArduinoPlotter(&Serial);
+#endif
+
+#if defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
+    printDataForArduinoPlotter(&Serial);
+#endif
+
+#if defined(TRACE)
+    if (FrequencyDetectorControl.FrequencyRaw > SIGNAL_MAX_ERROR_CODE) {
+        printPeriodLengthArray(&Serial);
+    }
+#endif
 
     /*
      * compute match
@@ -1035,18 +1042,9 @@ void detectFrequency() {
     }
 
 #if defined(INFO) && ! (defined(DEBUG) || defined(PRINT_INPUT_SIGNAL_TO_PLOTTER) || defined(PRINT_RESULTS_TO_SERIAL_PLOTTER))
-    /*
-     * Info output for evaluating the signal received, Debug output is done below
-     */
-    static uint16_t sLastTriggerLevel;
-    if (abs(FrequencyDetectorControl.TriggerLevel - sLastTriggerLevel) > 0x10) {
-        sLastTriggerLevel = FrequencyDetectorControl.TriggerLevel;
-        Serial.print(F("Trg="));
-        Serial.print(FrequencyDetectorControl.TriggerLevel);
-        Serial.print(F(" Avg="));
-        Serial.print(FrequencyDetectorControl.AverageLevel);
-        Serial.print(F(" D="));
-        Serial.println(FrequencyDetectorControl.SignalDelta);
+    if (abs((int16_t)FrequencyDetectorControl.AverageLevel - (int16_t)sLastAverageLevel) > 0x10) {
+        sLastAverageLevel = FrequencyDetectorControl.AverageLevel;
+        printSignalInfos();
     }
 #endif
 
@@ -1083,13 +1081,6 @@ void detectFrequency() {
     } else if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH) {
         digitalWriteFast(LED_MATCH, HIGH);
     }
-
-#  ifdef PRINT_RESULTS_TO_SERIAL_PLOTTER
-    printDataForArduinoPlotter(&Serial);
-#  endif
-#  ifdef PRINT_INPUT_SIGNAL_TO_PLOTTER
-    printInputSignalValuesForArduinoPlotter(&Serial);
-#  endif
 #endif
 
     /*
@@ -1335,8 +1326,8 @@ void doReset() {
     Serial.flush();
 #endif
     // Jump to 0x0000
-    void (*ptrToReset)() = 0;// pointer to reset
-    (*ptrToReset)();// reset!
+    void (*ptrToReset)() = 0; // pointer to reset
+    (*ptrToReset)(); // reset!
 #else
     // second push happened before timeout -> perform reset (this does not work with arduino or digispark bootloader)
     wdt_enable(WDTO_500MS);

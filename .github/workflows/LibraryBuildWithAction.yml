@@ -10,7 +10,7 @@
 # This is the name of the workflow, visible on GitHub UI.
 name: LibraryBuildWithAction
 
-on:  
+on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     paths:
     - '**.ino'
@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest # I picked Ubuntu to use shell scripts.
 
     env:
-      # Comma separated list without double quotes around the list. 
-      REQUIRED_LIBRARIES: 
+      # Comma separated list without double quotes around the list.
+      REQUIRED_LIBRARIES: #ATtinySerialOut
 
     strategy:
       matrix:
@@ -64,6 +64,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
+      - name: Checkout master version of ATtinySerialOut
+        uses: actions/checkout@v2
+        with:
+          repository: ArminJo/ATtinySerialOut
+          ref: master
+          path: CustomLibrary # must contain string "Custom"
+
       - name: Compile all examples
         uses: ArminJo/arduino-test-compile@master
         with:
@@ -71,4 +78,3 @@ jobs:
           required-libraries: ${{ env.REQUIRED_LIBRARIES }}
           platform-url: ${{ matrix.platform-url }}
           examples-exclude: ${{ matrix.examples-exclude }}
-          
