@@ -46,26 +46,28 @@
  */
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-#include "ATtinySerialOut.h" // Available as Arduino library and contained in WhistleSwitch example.
-#define SIGNAL_BUFFER_SIZE 100
-#else
-#define SIGNAL_BUFFER_SIZE NUMBER_OF_SAMPLES
+#include "ATtinySerialOut.h" // For redefining Print. Available as Arduino library
 #endif
 
 // If enabled, store first input samples for printing to Arduino Plotter
 //#define PRINT_INPUT_SIGNAL_TO_PLOTTER
-
 // Enable this to print generated output to Arduino Serial Plotter (Ctrl-Shift-L)
 //#define PRINT_RESULTS_TO_SERIAL_PLOTTER
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER) && defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
 #error Please define only one of PRINT_INPUT_SIGNAL_TO_PLOTTER and PRINT_RESULTS_TO_SERIAL_PLOTTER
 #endif
 
-//#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 400 Hz
-#if ! defined(FREQUENCY_RANGE_LOW) && ! defined(FREQUENCY_RANGE_HIGH)
-#define FREQUENCY_RANGE_DEFAULT // good for frequencies from 400 to 3000 Hz
+#if (RAMEND < 1000)
+#define SIGNAL_PLOTTER_BUFFER_SIZE 100 // ATtiny85 -> Store only start of signal in plotter buffer
+#else
+#define SIGNAL_PLOTTER_BUFFER_SIZE NUMBER_OF_SAMPLES // ATmega328 -> Can store complete signal in plotter buffer
 #endif
-//#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 3000 Hz
+
+//#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 500 Hz
+#if ! defined(FREQUENCY_RANGE_LOW) && ! defined(FREQUENCY_RANGE_HIGH)
+#define FREQUENCY_RANGE_DEFAULT // good for frequencies from 100 to 2200 Hz
+#endif
+//#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 2000 Hz
 
 /*
  * Global settings which are required at compile time
@@ -76,8 +78,11 @@
  * 1024 16 MHz clock with prescaler  64:  53.248 milliseconds / 18.78 Hz. With 13 cycles/sample (=>  52 usec/sample | 19230 Hz sample rate)
  * 1024 16 MHz clock with prescaler  16:  13.312 milliseconds / 75.12 Hz. With 13 cycles/sample (=>  13 usec/sample | 76923 Hz sample rate)
  * 512   1 MHz clock with prescaler   4:  26.624 milliseconds / 37.56 Hz. With 13 cycles/sample (=>  52 usec/sample | 19230 Hz sample rate)
+ * FREQUENCY_RANGE_HIGH -> 13 usec/sample -> 300 to 9612 Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
+ * FREQUENCY_RANGE_DEFAULT -> 52 usec/sample -> 75 to 2403 Hz with 1024 samples and 150 to 2403 Hz with 512 samples.
+ * FREQUENCY_RANGE_LOW -> 104 usec/sample -> 38 to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
  */
-#define NUMBER_OF_SAMPLES 512
+#define NUMBER_OF_SAMPLES 512 // This does NOT occupy RAM, only (NUMBER_OF_SAMPLES / MIN_SAMPLES_PER_PERIOD) bytes are required.
 //#define NUMBER_OF_SAMPLES 1024
 
 /*
@@ -86,7 +91,7 @@
 #define MIN_SAMPLES_PER_PERIOD 8   // => Max frequency is 2403 Hz at 52 usec/sample, 9612 Hz at 13 usec/sample
 /*
  * For n signal periods we have 2n or (2n + 1) trigger
- * 8 trigger per buffer = 512/4=128 samples per period -> 150 Hz for 52 usec/sample, 600 Hz for 13 usec/sample.
+ * 8 trigger per buffer = 512/4=128 samples per period => 150 Hz for 52 usec/sample, 600 Hz for 13 usec/sample at 512 samples.
  * So we have 150 to 2403 Hz at 52 usec/sample and 512 buffer
  */
 #define MINIMUM_NUMBER_OF_TRIGGER_PER_BUFFER 8 // => Min frequency is 150 Hz at 52 usec/sample, 600 Hz at 13 usec/sample for 512 buffer size
@@ -124,38 +129,42 @@
 #define ADC_PRESCALE128  7
 
 /*
- * Default timing for reading is 19,23 kHz sample rate.
+ * Default timing for reading is 19,23 kHz sample rate, giving a range from 300 to 2403 Hz at 1024 samples.
  * Formula is F_CPU / (PrescaleFactor * 13)
- * For frequency below 400 Hz it might be good to use FREQUENCY_RANGE_LOW to e.g. increase PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE128.
- * For frequencies above 3 kHz it might be good to use FREQUENCY_RANGE_HIGH to e.g. decrease PRESCALE_VALUE_DEFAULT from PRESCALE64 to PRESCALE32 or even lower.
+ * For frequency below 500 Hz it might be good to use FREQUENCY_RANGE_LOW which increases the ADC clock prescale value by factor 2.
+ * For frequencies above 1 kHz it might be good to use FREQUENCY_RANGE_HIGH which decreases the ADC clock prescale value by factor 4.
  */
 #if defined(FREQUENCY_RANGE_DEFAULT)
+// 52 usec/sample -> 75 to 2403 Hz with 1024 samples and 150 to 2403 Hz with 512 samples.
 #  if F_CPU == 16000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 52 microseconds per ADC sample at 16 Mhz Clock => 19.23 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 52 microseconds per ADC sample at 16 MHz Clock => 19.23 kHz sample rate
 #  elif F_CPU == 8000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE32 // 52 microseconds per ADC sample at 8 Mhz Clock => 19.23 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE32 // 52 microseconds per ADC sample at 8 MHz Clock => 19.23 kHz sample rate
 #  elif F_CPU == 1000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE4 // 52 microseconds per ADC sample at 1 Mhz Clock => 19.23 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE4 // 52 microseconds per ADC sample at 1 MHz Clock => 19.23 kHz sample rate
 #  endif
 #define MICROS_PER_SAMPLE 52
 #elif defined(FREQUENCY_RANGE_LOW)
+// 104 usec/sample -> 38 to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
 #  if F_CPU == 16000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE128 // 104 microseconds per ADC sample at 16 Mhz Clock => 9.615 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE128 // 104 microseconds per ADC sample at 16 MHz Clock => 9.615 kHz sample rate
 #  elif F_CPU == 8000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 104 microseconds per ADC sample at 8 Mhz Clock => 9.615 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE64 // 104 microseconds per ADC sample at 8 MHz Clock => 9.615 kHz sample rate
 #  elif F_CPU == 1000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 104 microseconds per ADC sample at 1 Mhz Clock => 9.615 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 104 microseconds per ADC sample at 1 MHz Clock => 9.615 kHz sample rate
 #  endif
 #define MICROS_PER_SAMPLE 104
 #elif defined(FREQUENCY_RANGE_HIGH)
+// 13 usec/sample -> 300 to 9612 Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
 #  if F_CPU == 16000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE16 // 13 microseconds per ADC sample at 16 Mhz Clock => 76.923 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE16 // 13 microseconds per ADC sample at 16 MHz Clock => 76.923 kHz sample rate
 #define MICROS_PER_SAMPLE 13
 #  elif F_CPU == 8000000L
-#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 13 microseconds per ADC sample at 8 Mhz Clock => 76.923 kHz sample rate
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE8 // 13 microseconds per ADC sample at 8 MHz Clock => 76.923 kHz sample rate
 #define MICROS_PER_SAMPLE 13
 #  elif F_CPU == 1000000L
 # error "At 1 MHz a sampling time of 26 microseconds can not be achieved. Increase F_CPU to 8000000."
+#define PRESCALE_VALUE_DEFAULT ADC_PRESCALE2 // 26 microseconds per ADC sample at 1 MHz Clock => 38.461 kHz sample rate
 #define MICROS_PER_SAMPLE 26
 #  endif
 #endif
@@ -163,7 +172,7 @@
 # error "F_CPU is not one of 16000000, 8000000 or 1000000"
 #endif
 
-#define CLOCKS_FOR_READING_NO_LOOP 625 // extra clock cycles outside of the loop for one signal reading. Usefd to compensate millis();
+#define CLOCKS_FOR_READING_NO_LOOP 625 // extra clock cycles outside of the loop for one signal reading. Used to compensate millis();
 #define MICROS_PER_BUFFER_READING ((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP)
 
 // number of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
@@ -281,15 +290,14 @@ struct FrequencyDetectorControlStruct {
  * After including this file you can not call the ATTinyCore readAnalog functions reliable, if you specify references other than default!
  */
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-// defines are from Arduino.h, the can be used without bit reordering
-#ifdef ATTINY_CORE
+// defines are for ADCUtils.cpp, they can be used WITHOUT bit reordering
 #undef DEFAULT
 #undef EXTERNAL
 #undef INTERNAL1V1
 #undef INTERNAL
 #undef INTERNAL2V56
 #undef INTERNAL2V56_EXTCAP
-#endif
+
 #define DEFAULT 0
 #define EXTERNAL 4
 #define INTERNAL1V1 8
@@ -312,7 +320,6 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
 uint16_t readSignal();
 uint16_t doEqualDistributionPlausi();
 void computeDirectAndFilteredMatch(uint16_t aFrequency);
-
 
 void printTriggerValues(Print * aSerial);
 void printPeriodLengthArray(Print * aSerial);

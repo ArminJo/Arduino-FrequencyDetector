@@ -1,0 +1,20 @@
+{
+  "name": "FrequencyDetector",
+  "keywords": "frequency, pitch, meter, Hz",
+  "description": "Measure the main frequency of analog captured signal connected to an Arduino and check for noise and mute.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ArminJo/Arduino-FrequencyDetector"
+  },
+  "version": "2.0.0",
+  "exclude": "pictures",
+  "authors": {
+    "name": "Armin Joachimsmeyer",
+    "email": "armin.joachimsmeyer@gmail.com"
+  },
+  "license": "GPL-3.0-or-later",
+  "frameworks": "arduino",
+  "platforms": [
+    "atmelavr"
+  ]
+}

@@ -26,7 +26,7 @@ jobs:
 
     env:
       # Comma separated list without double quotes around the list.
-      REQUIRED_LIBRARIES: #ATtinySerialOut
+      REQUIRED_LIBRARIES: #ATtinySerialOut # is loaded as custom library below
 
     strategy:
       matrix:
@@ -43,22 +43,25 @@ jobs:
         arduino-boards-fqbn:
           - arduino:avr:uno
           - arduino:avr:uno|All-DEBUG
-          - digistump:avr:digispark-tiny1
+          - digistump:avr:digispark-tiny:clock=clock1
           - ATTinyCore:avr:attinyx5:chip=85,clock=1internal
 
         # Specify parameters for each board.
-        # With examples-exclude you may exclude specific examples for a board. Use a comma separated list.
+        # With sketches-exclude you may exclude specific examples for a board. Use a comma separated list.
         #############################################################################################################
         include:
           - arduino-boards-fqbn: arduino:avr:uno|All-DEBUG # UNO board with -DDEBUG for all examples
-            examples-exclude: 50Hz # Comma separated list of (unique substrings of) example names to exclude in build
-            examples-build-properties:
+            sketches-exclude: 50Hz # Comma separated list of (unique substrings of) example names to exclude in build
+            build-properties:
               All: -DDEBUG -DINFO
-              WhistleSwitch: -DDEBUG -DINFO
+              WhistleSwitch: -DDEBUG
 
-          - arduino-boards-fqbn: digistump:avr:digispark-tiny1  # ATtiny85 board @1 MHz
+          - arduino-boards-fqbn: digistump:avr:digispark-tiny:clock=clock1  # ATtiny85 board @1 MHz
             platform-url: https://raw.githubusercontent.com/ArminJo/DigistumpArduino/master/package_digistump_index.json
             sketch-names: WhistleSwitch.ino,SimpleFrequencyDetector.ino,50Hz # Comma separated list of sketch names (no path required) or patterns to use in build
+            build-properties:
+              All: -DINFO
+              WhistleSwitch: -DUSE_ATTINY85_20X_AMPLIFICATION -DINFO
 
           - arduino-boards-fqbn: ATTinyCore:avr:attinyx5:chip=85,clock=1internal
             platform-url: http://drazzy.com/package_drazzy.com_index.json
@@ -91,10 +94,11 @@ jobs:
           ENV_ARDUINO_BOARD_FQBN: ${{ matrix.arduino-boards-fqbn }}
           ENV_PLATFORM_URL: ${{ matrix.platform-url }}
           ENV_REQUIRED_LIBRARIES: ${{ env.REQUIRED_LIBRARIES }}
-          ENV_EXAMPLES_EXCLUDE: ${{ matrix.examples-exclude }}
-          ENV_EXAMPLES_BUILD_PROPERTIES: ${{ toJson(matrix.examples-build-properties) }}
+          ENV_SKETCHES_EXCLUDE: ${{ matrix.sketches-exclude }}
+          ENV_BUILD_PROPERTIES: ${{ toJson(matrix.build-properties) }}
           ENV_SKETCH_NAMES: ${{ matrix.sketch-names }}
           ENV_SKETCH_NAMES_FILE_START: .
+          ENV_DEBUG_COMPILE: true
 
         run: |
           wget --quiet https://raw.githubusercontent.com/ArminJo/arduino-test-compile/master/arduino-test-compile.sh

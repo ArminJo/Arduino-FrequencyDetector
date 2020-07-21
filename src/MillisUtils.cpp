@@ -106,6 +106,7 @@ void enableMillisInterrupt(uint16_t aMillisToAddForCompensation) {
 }
 
 #endif //  defined(__AVR__)
+
 #if ! defined(TEENSYDUINO)
 void delayMilliseconds(unsigned int aMillis) {
     for (unsigned int i = 0; i < aMillis; ++i) {

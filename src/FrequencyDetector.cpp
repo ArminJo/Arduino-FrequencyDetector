@@ -189,7 +189,7 @@ void setFrequencyDetectorReadingDefaults() {
 }
 
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
-uint16_t sReadValueBuffer[SIGNAL_BUFFER_SIZE];
+uint16_t sReadValueBuffer[SIGNAL_PLOTTER_BUFFER_SIZE];
 #endif
 /*
  * ADC read routine reads NUMBER_OF_SAMPLES (1024/512) samples and computes:
@@ -260,7 +260,7 @@ uint16_t readSignal() {
         ADCSRA |= (1 << ADIF); // clear bit to recognize next conversion has finished
 
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
-        if (i < SIGNAL_BUFFER_SIZE) {
+        if (i < SIGNAL_PLOTTER_BUFFER_SIZE) {
             sReadValueBuffer[i] = tUValue.UWord;
         }
 #endif
@@ -547,7 +547,7 @@ void printInputSignalValuesForArduinoPlotter(Print * aSerial) {
 
 
     aSerial->println(0);
-    for (uint16_t i = 0; i < SIGNAL_BUFFER_SIZE; ++i) {
+    for (uint16_t i = 0; i < SIGNAL_PLOTTER_BUFFER_SIZE; ++i) {
         aSerial->print(sReadValueBuffer[i]);
         aSerial->print(' ');
         aSerial->print(FrequencyDetectorControl.TriggerLevel);

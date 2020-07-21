@@ -57,6 +57,10 @@
 #define LED_BUILTIN PB1
 #endif
 
+#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
+#include "ATtinySerialOut.h" // Available as Arduino library
+#endif
+
 #include "FrequencyDetector.h"
 
 #if defined(INFO)

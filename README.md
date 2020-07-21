@@ -10,28 +10,35 @@ Available as Arduino library "FrequencyDetector"
 [![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithSteps/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
 [![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FArduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
 
+Detects frequency **from 38 Hz to 9612 Hz** and works even on an ATTiny85 with 1 MHz up to 4806 Hz. The input signal can be plotted to the Arduino Serial Plotter resulting in a **simple Oscilloscope** to test the internal signal.
+
 YouTube video of whistle switch example in action.
 
 [![Demonstration of 3 whistle switches in one room](https://i.ytimg.com/vi/_e2mElB8zJs/hqdefault.jpg)](https://www.youtube.com/watch?v=_e2mElB8zJs)
 
 # Internal operation
-This library analyzes a (microphone) signal and outputs the detected frequency. It simply counts zero crossings and **it does do not use FFT**.
+This library analyzes a (microphone) signal and outputs the detected frequency. It simply counts zero crossings and **it does not use FFT**.
 The ADC sample data is **not** stored in RAM, only the period lengths (between triggers) are stored in the `PeriodLength[]` array,
 which is a byte array and has the size of `NUMBER_OF_SAMPLES / 8`.<br/>
+It is like in the [Arduino Simple Audio Frequency Meter](https://www.arduino.cc/en/Tutorial/SimpleAudioFrequencyMeter) but includes additional noise check.<br/>
 The **timer 0 interrupt**, which counts the milliseconds, **is disabled during reading** and enabled afterwards!
 The value of millis() is adjusted after reading.<br/>
 The alternative to disabling the interrupt is getting partially invalid results!
 
-### `readSignal()` is the ADC read routine, which reads 1024/512 samples and computes the following values:
-  1. Frequency of signal `uint16_t FrequencyRaw;`
-  2. MaxValue - MinValue `uint16_t SignalDelta;`
-  3. Average = (SumOfSampleValues / NumberOfSamples) `uint16_t AverageLevel;`
+There are 3 detection ranges available:
+- `FREQUENCY_RANGE_HIGH` -> 13 usec/sample -> 300 to **9612** Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
+- `FREQUENCY_RANGE_DEFAULT` -> 52 usec/sample -> **75 to 2403 Hz with 1024 samples** and 150 to 2403 Hz with 512 samples.
+- `FREQUENCY_RANGE_LOW` -> 104 usec/sample -> **38** to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
+
+### `readSignal()` is the ADC read routine, which reads 1024 samples (512 for ATtinies) and computes the following values:
+  1. Frequency of signal `uint16_t FrequencyRaw`
+  2. Amplitude = (MaxValue - MinValue) `uint16_t SignalDelta`
+  3. Average = (SumOfSampleValues / NumberOfSamples) `uint16_t AverageLevel`
   4. The length of each period (between 2 trigger conditions) in the `PeriodLength[]` array.
 
-### `doEqualDistributionPlausi()` checks if the signal in the `PeriodLength[]` array is not noisy and valid. It uses the following plausibility rules:
-  1. A trigger must be detected in first and last 1/8 of samples.
-  2. Only 1/8 of the samples are allowed to be greater than 1.5 or less than 0.75 of the average period.
-  In case of failure, the value of `FrequencyRaw` is overwritten with the error code.
+### `doEqualDistributionPlausi()` checks if the signal in the `PeriodLength[]` array is valid / not noisy.
+It checks if at maximum 1/8 of the periods are greater than 1.5 or less than 0.75 of the average period.
+If not, the value of `FrequencyRaw` is overwritten with the error code `SIGNAL_DISTRIBUTION_PLAUSI_FAILED`.
 
 ### `computeDirectAndFilteredMatch()` waits for n matches within a given frequency range (FrequencyMatchLow - FrequencyMatchHigh)
 and also low pass filters the result for smooth transitions between the 3 match states (lower, match, greater). It computes the following values:
@@ -48,7 +55,7 @@ The [ATtinySerialOut library](https://github.com/ArminJo/ATtinySerialOut) is req
 This example reads analog signal e.g. from MAX9814 Module at A1 and computes the frequency.
 If frequency is in the range of 1400 to 1700 Hz, the Arduino built in LED will light up.
 It prints the detected frequency as well as plausibility errors.
-For frequency below 400 Hz it might be good to change `PRESCALE_VALUE_DEFAULT` to `PRESCALE128`.
+For frequency below 500 Hz it might be good to change `FREQUENCY_RANGE_DEFAULT` to `FREQUENCY_RANGE_LOW`.
 
 SimpleFrequencyDetector on breadboard with MAX9814 Module
 ![SimpleFrequencyDetector on breadboard with MAX9814 Module](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/SimpleFrequencyDetector_MAX9814.jpg)
@@ -123,7 +130,7 @@ The setting is stored in EEPROM. Default is `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3` 
 A reset can be performed by power off/on or by pressing the button two times, each time shorter than `RESET_ENTER_BUTTON_PUSH_MILLIS` (0.12 seconds) within a `RESET_WAIT_TIMEOUT_MILLIS` (0.3 seconds) interval.
 
 ## Using a Digispark board
-First install the new [Digistump AVR version 1.6.8](https://github.com/ArminJo/DigistumpArduino#installation) and [update the bootloader](https://github.com/ArminJo/DigistumpArduino#update-the-bootloader).
+First install the new [Digistump AVR version](https://github.com/ArminJo/DigistumpArduino#installation) and [update the bootloader](https://github.com/ArminJo/DigistumpArduino#update-the-bootloader).
 This enables to have `INFO` outputs on the ATtiny85<br/>
 
 # SCHEMATIC for external components of FrequencyDetector / WhistleSwitch
@@ -149,36 +156,76 @@ Discrete microphone amplifier with LM308
                                       ---  100 nF
                                        |
                                       ___
+```
 
+```
+External circuit for 1x amplification configuration on a Digispark board.
 
-Connection of Adafruit microphone modules:
+         + CPU 5V                                    - * Schottky-diode
+         o------------------------------------ o-----|<|--o-- USB 5V
+         |                                     |    -     |
+         _                                     |          |
+        | |                                    o /        |
+   470k | |                                     /=| Push button
+        |_|                                    /          |
+    1n   |   ____       ____                   o----------o
+ >- | |--o--|____|--o--|____|--O PB4 550 mV    |
+  500Hz  |   3k3    |   10k to enable USB      _
+  High   _          |       programming       | |
+  Pass  | |        ---                        | | * 1k5 pullup
+   100k | |        --- 22n 2kHz Low           |_|
+        |_|         |          Pass            |
+         |          |                   ____   |
+         o----------o           PB3 O--|____|--o
+         |                            * 68/22  |
+         |                                    __
+         |                                    /\` * 3V6 Z-diode
+         |                                    --
+         |                                     |  * = assembled USB circuit on Digispark
+         |                                     |
+        ___                                   ___
+```
 
-         + 5V / 3.3V        o--O PIN REF
-         |                  |
-         |                  _
-         |                 | |
-MAX4466 / 9814 MICROPHONE  | | 1M
-    AMPLIFIER / MODULE     |_|
-         |                  |
-        |O -------||--------o--O PIN A1
-         |       10nF       |
-         |                  _
-         |                 | |
-         |                 | | 1M
-        ___                |_|
-                            |
-                            |
-                           ___
+```
+External circuit for 20x amplification configuration on a Digispark board.
+
+         + CPU 5V                                    - * Schottky-diode
+         o------------------------------------ o-----|<|--o-- USB 5V
+         |                                     |    -     |
+         _                                     |          |
+        | |                                    o /        |
+   680k | |                                     /=| Push button
+        |_|                                    /          |
+   100n  |   ____       ____                   o----------o
+ >- | |--o--|____|--o--|____|--O PB4 44 mV     |
+  500Hz  |   3k3    |   10k to enable USB      _
+  High   _          |       programming       | |
+  Pass  | |        ---                        | | * 1k5 pullup
+    3k3 | |        --- 22n 2kHz Low           |_|
+        |_|         |          Pass            |
+         |          |                   ____   |
+         o----------o--O PB3 22 mV-----|____|--o
+         |                            * 68/22  |
+         _                                    __
+        | |                                   /\` * 3V6 Z-diode
+    3k3 | |                                   --
+        |_|                                    |  * = assembled USB circuit on Digispark
+         |                                     |
+        ___                                   ___
+
+  PB2 O-- Serial out 115200 baud
+  PB1 O-- Feedback LED
+  PB0 O-- Relay
 ```
 
 # Revision History
 ### Version 2.0.0
+- Added plotter output of input signal.
 - Renamed `doPlausi()` to `doEqualDistributionPlausi()`.
 - Changed [error values](src/FrequencyDetector.h#L170) and computation.
 - Added documentation.
 - Added [`MEASURE_READ_SIGNAL_TIMING`](src/FrequencyDetector.h#L64) capability.
-- Added plotter output of input signal.
-- Adapted [WhistleSwitch example](examples/WhistleSwitch) to [`EasyButtonAtInt01`](https://github.com/ArminJo/EasyButtonAtInt01) library.
+- Refactored [WhistleSwitch example](examples/WhistleSwitch) and adapted to [`EasyButtonAtInt01`](https://github.com/ArminJo/EasyButtonAtInt01) library.
 
 ### Version 1.1.1
 - Moved libraries for WhistleSwitch example.
