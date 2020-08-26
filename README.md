@@ -7,7 +7,6 @@ Available as Arduino library "FrequencyDetector"
 [![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
 [![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithAction/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
 [![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithScript/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
-[![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithSteps/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
 [![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FArduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
 
 Detects frequency **from 38 Hz to 9612 Hz** and works even on an ATTiny85 with 1 MHz up to 4806 Hz. The input signal can be plotted to the Arduino Serial Plotter resulting in a **simple Oscilloscope** to test the internal signal.

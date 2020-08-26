@@ -55,6 +55,7 @@ void Information(void);
 void printBODLevel(uint8_t aHighFuseBits);
 void printBODLevel();
 void printFuses(void);
+void printMCUSR(uint8_t aMCUSRContent);
 void printBODSFlagExistence();
 #endif //  defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 

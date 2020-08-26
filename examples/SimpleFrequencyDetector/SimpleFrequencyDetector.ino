@@ -83,9 +83,10 @@ void setup() {
     pinMode(LED_NO_TRIGGER, OUTPUT);
 
     /*
-     * initialize FrequencyDetector
+     * initialize default values for high and low frequency and dropout counts for frequency detector.
      */
     setFrequencyDetectorControlDefaults();
+
     /*
      * Set channel, reference, sample rate and threshold for low signal detection.
      * Set reference to 1.1Volt for AC coupled signal.

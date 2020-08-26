@@ -347,6 +347,22 @@ void printBODLevel() {
     printBODLevel(tHighFuseBits);
 }
 
+void printMCUSR(uint8_t aMCUSRContent) {
+    if (aMCUSRContent & (1 << WDRF)) {
+        Serial.print(F(" Watchdog"));
+    }
+    if (aMCUSRContent & (1 << BORF)) {
+        Serial.print(F(" Brownout"));
+    }
+    if (aMCUSRContent & (1 << EXTRF)) {
+        Serial.print(F(" Reset"));
+    }
+    if (aMCUSRContent & (1 << PORF)) {
+        Serial.print(F(" PowerOn"));
+    }
+    Serial.println();
+}
+
 /*
  * Output description for all fuses except "DebugWire enabled"
  */

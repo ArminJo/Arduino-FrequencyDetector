@@ -39,6 +39,8 @@
  *  INFO
  *  After power up or reset, the feedback LED echoes the range number. Range number 10 indicates an individual range, programmed by advanced programming.
  *  The timeout state is signaled by short LED pulses after the range number feedback (no short pulse -> no timeout enabled).
+ *  If the button is pressed during the info / startup, the ADC ((AverageLevel + 50) / 100) is signaled after the timeout signaling.
+ *      Range is from 0 to 10. Values of 4 to 6 are optimal.
  *
  *  TIMEOUT
  *  After a timeout of TIMEOUT_RELAY_ON_SIGNAL_MINUTES_(1 to 3) (2, 4 or 8 hours) the relay goes OFF for 1 second.
@@ -129,10 +131,8 @@
  * If not defined, the 1x amplification is used with a more digispark compatible pin layout
  */
 //#define USE_ATTINY85_20X_AMPLIFICATION
-
 //#define PRINT_RESULTS_TO_SERIAL_PLOTTER
 //#define MEASURE_TIMING // do not activate for ATTinies since there is no timing pin left
-
 //#define TRACE
 //#define DEBUG
 #if ! defined (INFO)
@@ -409,6 +409,7 @@ EEMEM EepromParameterStruct sPersistentParametersEEPROM;
  * States for main loop
  */
 enum MainStateEnum {
+    IN_SETUP,
     DETECT_FREQUENCY,
     PROGRAM_SIMPLE,
     PROGRAM_ADVANCED_FREQUENCY_RANGE,
@@ -426,6 +427,7 @@ struct WhistleSwitchControlStruct {
 
     uint32_t MillisAtLastRelayChange;
     //
+    bool sSignalAverageLevel; // Signal (Average level / 100) at startup
     bool RelayJustToggled; // do only one toggle per consecutive matches
     bool sMatchTooLongDetected;
     //
@@ -594,6 +596,19 @@ void signalRangeIndexByLed() {
 
 // display range index
     for (uint8_t j = 0; j <= i; ++j) {
+        digitalWriteFast(LED_FEEDBACK, HIGH);
+        delay(TIMING_FREQUENCY_LOWER_MILLIS * 4);
+        digitalWriteFast(LED_FEEDBACK, LOW);
+        delay(TIMING_FREQUENCY_LOWER_MILLIS * 4);
+    }
+}
+
+/*
+ * Range is from 0 to 10. Values of 4 to 6 are optimal.
+ */
+void signalAverageLevelByLed() {
+    // display AverageLevel / 100
+    for (uint8_t i = 0; i <= (FrequencyDetectorControl.AverageLevel + 50) / 100; ++i) {
         digitalWriteFast(LED_FEEDBACK, HIGH);
         delay(TIMING_FREQUENCY_LOWER_MILLIS * 4);
         digitalWriteFast(LED_FEEDBACK, LOW);
@@ -833,7 +848,7 @@ void MyInit(void) {
  *******************************************************************************************/
 void setup() {
 #ifdef INFO
-    uint8_t tMCUSRStored=0;
+    uint8_t tMCUSRStored = 0;
     if (MCUSR != 0) {
         tMCUSRStored = MCUSR; // content of MCUSR register at startup
         MCUSR = 0; // to prepare for next boot.
@@ -873,6 +888,8 @@ void setup() {
     pinModeFast(LED_FEEDBACK, OUTPUT);
     pinModeFast(RELAY_OUT, OUTPUT);
 
+    WhistleSwitchControl.MainState = IN_SETUP;
+
 #ifdef INFO
     // Just to know which program is running on my Arduino
     Serial.print(F("\r\nSTART WhistleSwitch.cpp\r\nVersion " VERSION_EXAMPLE " from " __DATE__"\r\nMCUSR=0x"));
@@ -881,11 +898,6 @@ void setup() {
     printBODLevel();
 #  endif
 #endif
-
-// initial state of whistle switch
-    backToStateDetect();
-    ButtonAtPin3.ButtonStateHasJustChanged = false;
-    WhistleSwitchControl.TimeoutSignaledOnce = false;
 
     /*
      * Set channel, reference, sample rate and threshold for low signal detection.
@@ -920,12 +932,13 @@ void setup() {
      */
     signalTimeoutByLed();
     delay(1000);
+    readSignal(); // initialize values
 
 //initPinChangeInterrupt
 #if defined(__AVR_ATtiny85__)
-    GIFR = _BV(PCIF); // Must clear interrupt flag in order to avoid to call this ISR, when enabling interrupts below.
-    GIMSK = _BV(PCIE); //INT0 disable, PCINT enable
-    PCMSK = _BV(BUTTON_PIN);
+//    GIFR = _BV(PCIF); // Must clear interrupt flag in order to avoid to call this ISR, when enabling interrupts below.
+//    GIMSK = _BV(PCIE); //INT0 disable, PCINT enable
+//    PCMSK = _BV(BUTTON_PIN);
 #else
 //    PCICR = _BV(PCIE2); //PCINT2 enable
 //    PCMSK2 = digitalPinToBitMask(BUTTON_PIN); // 0x20 - Pin 5 enable
@@ -933,6 +946,16 @@ void setup() {
 #if defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
     printLegendForArduinoPlotter(&Serial);
 #endif
+
+    // initial state of whistle switch
+    backToStateDetect();
+    //    ButtonAtPin3.ButtonStateHasJustChanged = false;
+    //    WhistleSwitchControl.TimeoutSignaledOnce = false;
+
+    if (WhistleSwitchControl.sSignalAverageLevel) {
+        readSignal();
+        signalAverageLevelByLed();
+    }
 }
 
 /************************************************************************
@@ -1101,7 +1124,9 @@ void detectFrequency() {
     }
 
 #if defined(INFO) && ! (defined(DEBUG) || defined(PRINT_INPUT_SIGNAL_TO_PLOTTER) || defined(PRINT_RESULTS_TO_SERIAL_PLOTTER))
-    if (abs((int16_t)FrequencyDetectorControl.AverageLevel - (int16_t)sLastAverageLevel) > AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT) {
+    if (abs(
+            (int16_t )FrequencyDetectorControl.AverageLevel
+            - (int16_t )sLastAverageLevel) > AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT) {
         sLastAverageLevel = FrequencyDetectorControl.AverageLevel;
         printSignalInfos();
     }
@@ -1247,6 +1272,10 @@ void detectSimpleProgrammingStateTimeout() {
  */
 void handleButtonPress(bool __attribute__((unused)) aButtonToggleState) {
     switch (WhistleSwitchControl.MainState) {
+    case IN_SETUP:
+        WhistleSwitchControl.sSignalAverageLevel = true;
+        break;
+
     case DETECT_FREQUENCY:
         if (ButtonAtPin3.checkForDoublePress(RESET_WAIT_TIMEOUT_MILLIS)) {
             doReset();
@@ -1385,8 +1414,8 @@ void doReset() {
     Serial.flush();
 #  endif
     // Jump to 0x0000
-    void (*ptrToReset)() = 0; // pointer to reset
-    (*ptrToReset)(); // reset!
+    void (*ptrToReset)() = 0;// pointer to reset
+    (*ptrToReset)();// reset!
 #else // defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__)
     // second push happened before timeout -> perform reset (this does not work with arduino bootloader)
     wdt_enable(WDTO_500MS);

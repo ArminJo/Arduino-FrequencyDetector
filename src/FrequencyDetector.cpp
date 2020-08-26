@@ -94,7 +94,6 @@ union Myword {
  * aADCReference can be DEFAULT (VCC) or INTERNAL (1.1 volt) !! use the definitions
  * aADCPrescalerValue can be one of PRESCALE4, PRESCALE8, PRESCALE32, PRESCALE64 or PRESCALE128
  * aFrequencyOfOneSampleTimes100 depends on value of aADCPrescalerValue
- * Formula is
  */
 void setFrequencyDetectorReadingValues(uint8_t aADCChannel, const uint8_t aADCReference, uint8_t aADCPrescalerValue,
         uint16_t aRawVoltageMinDelta) {
@@ -174,17 +173,23 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
 #endif
     return tRetval;
 }
-
+/*
+ * Initialize default values for high and low frequency and dropout counts for frequency detector.
+ */
 void setFrequencyDetectorControlDefaults() {
     setFrequencyDetectorMatchValues(FREQUENCY_MIN_DEFAULT, FREQUENCY_MAX_DEFAULT);
     setFrequencyDetectorDropoutCounts(MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT,
     MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT);
 }
 
+/*
+ * Set channel, reference, sample rate and threshold for low signal detection.
+ * Set reference to 5 volt for AC coupled signal.
+ */
 void setFrequencyDetectorReadingDefaults() {
     // for DC coupled signal
     setFrequencyDetectorReadingValues(ADC_CHANNEL_DEFAULT, DEFAULT, PRESCALE_VALUE_DEFAULT, RAW_VOLTAGE_MIN_DELTA_DEFAULT);
-    // set reference to 1.1 volt for AC coupled signal - is equivalent to an additional signal amplification of around 4
+    // If you set reference to 1.1 volt for AC coupled signal you have the equivalence to an additional signal amplification of around 4
     //setFrequencyDetectorReadingValues(ADC_CHANNEL_DEFAULT, INTERNAL1V1, PRESCALE_VALUE_DEFAULT, RAW_VOLTAGE_MIN_DELTA_DEFAULT);
 }
 
@@ -213,6 +218,8 @@ uint16_t sReadValueBuffer[SIGNAL_PLOTTER_BUFFER_SIZE];
  * !!! Timer0 interrupt, which counts the milliseconds is disabled during reading and enabled afterwards!!!
  * The alternative of using disable interrupt is getting wrong results!!!
  * The value of millis() is adjusted manually after reading.
+ *
+ * @return the frequency as detected during the reading
  */
 uint16_t readSignal() {
     Myword tUValue;
