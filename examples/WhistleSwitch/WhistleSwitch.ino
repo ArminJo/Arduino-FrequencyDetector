@@ -872,9 +872,9 @@ void setup() {
 
 #else // defined(__AVR_ATtiny85__)
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__)
-    while (!Serial); //delay for Leonardo, but this loops forever for Maple Serial
-#endif
+#  if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)
+    delay(2000); // To be able to connect Serial monitor after reset and before first printout
+#  endif
 
     pinMode(LED_LOWER, OUTPUT);
     pinMode(LED_MATCH, OUTPUT);

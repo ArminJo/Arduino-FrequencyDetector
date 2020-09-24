@@ -225,6 +225,7 @@ External circuit for 20x amplification configuration on a Digispark board.
 - Added documentation.
 - Added [`MEASURE_READ_SIGNAL_TIMING`](src/FrequencyDetector.h#L64) capability.
 - Refactored [WhistleSwitch example](examples/WhistleSwitch) and adapted to [`EasyButtonAtInt01`](https://github.com/ArminJo/EasyButtonAtInt01) library.
+- Removed blocking wait for ATmega32U4 Serial in examples.
 
 ### Version 1.1.1
 - Moved libraries for WhistleSwitch example.

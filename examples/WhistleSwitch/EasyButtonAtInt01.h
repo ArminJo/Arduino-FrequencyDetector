@@ -61,6 +61,7 @@
  * - Renamed to EasyButtonAtInt01.cpp.h
  */
 
+#if defined(__AVR__)
 #include <Arduino.h>
 
 /*
@@ -317,7 +318,7 @@ public:
     void handleINT01Interrupts(); // internal use only
 
     bool LastBounceWasChangeToInactive; // Internal state, reflects actual reading with spikes and bouncing. Negative logic: true / active means button pin is LOW
-    volatile bool ButtonStateIsActive; // Negative logic: true / active means button pin is LOW. If last press duration < BUTTON_DEBOUNCING_MILLIS it holds wrong value (true instead of false) :-(
+    volatile bool ButtonStateIsActive;  // Negative logic: true / active means button pin is LOW. If last press duration < BUTTON_DEBOUNCING_MILLIS it holds wrong value (true instead of false) :-(
     volatile bool ButtonToggleState;    // Toggle is on press, not on release - initial value is false
 
     /*
@@ -378,6 +379,7 @@ void __attribute__ ((weak)) handleINT0Interrupt();
 void __attribute__ ((weak)) handleINT1Interrupt();
 #endif
 
+#endif // defined(__AVR__)
 #endif /* EASY_BUTTON_AT_INT01_H_ */
 
 #pragma once

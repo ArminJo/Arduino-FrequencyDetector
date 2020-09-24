@@ -31,12 +31,14 @@
 #define VERSION_FREQUENCY_DETECTOR_MINOR 0
 
 /*
- * Version 2.0.0 - 5/2020
+ * Version 2.0.0 - 9/2020
  * - Renamed `doPlausi()` to `doEqualDistributionPlausi()`.
  * - Changed error values and computation.
  * - Added documentation.
  * - Added MEASURE_READ_SIGNAL_TIMING capability.
  * - Added plotter output of input signal.
+ * - Removed blocking wait for ATmega32U4 Serial in examples.
+ *
  *
  * Version 1.1.0 - 1/2020
  * - Corrected formula for compensating millis().
