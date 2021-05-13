@@ -21,6 +21,8 @@
  *
  */
 
+#if defined(__AVR__)
+
 #include <Arduino.h>
 
 #if defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
@@ -61,7 +63,7 @@ float GetTemp(void) {
         ;
 
     // Reading register "ADCW" takes care of how to read ADCL and ADCH.
-#if defined (__AVR_ATmega32U4__)
+#if defined(__AVR_ATmega32U4__)
     wADC = ADC;      // For Arduino Leonardo
 #else
     wADC = ADCW;     // 'ADCW' is preferred over 'ADC'
@@ -118,7 +120,7 @@ void Information(void) {
     float percentage;
 
     Serial.println(F(""));
-#if !defined (__AVR_ATmega32U4__)
+#if !defined(__AVR_ATmega32U4__)
     Serial.println(F("Information"));
     Serial.println(F("-----------"));
 
@@ -168,7 +170,7 @@ void Information(void) {
     Serial.print(F("__STDC__    = "));
     Serial.println(__STDC__, DEC);
 
-#if !defined (__AVR_ATmega32U4__)
+#if !defined(__AVR_ATmega32U4__)
     Serial.print(F("OSCCAL = "));
     Serial.println(OSCCAL, DEC);
 
@@ -214,61 +216,61 @@ void Information(void) {
     Serial.println(data4, HEX);
 
     Serial.print(F("Processor according to compiler = "));
-#if defined (__AVR_ATtiny45__)
+#if defined(__AVR_ATtiny45__)
     Serial.println(F("__AVR_ATtiny45__"));
-#elif defined (__AVR_ATtiny85__)
+#elif defined(__AVR_ATtiny85__)
     Serial.println(F("__AVR_ATtiny85__"));
-#elif defined (__AVR_ATtiny87__)
+#elif defined(__AVR_ATtiny87__)
     Serial.println(F("__AVR_ATtiny87__"));
-#elif defined (__AVR_ATtiny167__)
+#elif defined(__AVR_ATtiny167__)
     Serial.println(F("__AVR_ATtiny167__"));
-#elif defined (__AVR_ATtiny2313__)
+#elif defined(__AVR_ATtiny2313__)
     Serial.println(F("__AVR_ATtiny2313__"));
-#elif defined (__AVR_ATtiny2313A__)
+#elif defined(__AVR_ATtiny2313A__)
     Serial.println(F("__AVR_ATtiny2313A__"));
-#elif defined (__AVR_ATmega48__)
+#elif defined(__AVR_ATmega48__)
     Serial.println(F("__AVR_ATmega48__"));
-#elif defined (__AVR_ATmega48A__)
+#elif defined(__AVR_ATmega48A__)
     Serial.println(F("__AVR_ATmega48A__"));
-#elif defined (__AVR_ATmega48P__)
+#elif defined(__AVR_ATmega48P__)
     Serial.println(F("__AVR_ATmega48P__"));
-#elif defined (__AVR_ATmega8__)
+#elif defined(__AVR_ATmega8__)
     Serial.println(F("__AVR_ATmega8__"));
-#elif defined (__AVR_ATmega8U2__)
+#elif defined(__AVR_ATmega8U2__)
     Serial.println(F("__AVR_ATmega8U2__"));
-#elif defined (__AVR_ATmega88__)
+#elif defined(__AVR_ATmega88__)
     Serial.println(F("__AVR_ATmega88__"));
-#elif defined (__AVR_ATmega88A__)
+#elif defined(__AVR_ATmega88A__)
     Serial.println(F("__AVR_ATmega88A__"));
-#elif defined (__AVR_ATmega88P__)
+#elif defined(__AVR_ATmega88P__)
     Serial.println(F("__AVR_ATmega88P__"));
-#elif defined (__AVR_ATmega88PA__)
+#elif defined(__AVR_ATmega88PA__)
     Serial.println(F("__AVR_ATmega88PA__"));
-#elif defined (__AVR_ATmega16__)
+#elif defined(__AVR_ATmega16__)
     Serial.println(F("__AVR_ATmega16__"));
-#elif defined (__AVR_ATmega168__)
+#elif defined(__AVR_ATmega168__)
     Serial.println(F("__AVR_ATmega168__"));
-#elif defined (__AVR_ATmega168A__)
+#elif defined(__AVR_ATmega168A__)
     Serial.println(F("__AVR_ATmega168A__"));
-#elif defined (__AVR_ATmega168P__)
+#elif defined(__AVR_ATmega168P__)
     Serial.println(F("__AVR_ATmega168P__"));
-#elif defined (__AVR_ATmega32__)
+#elif defined(__AVR_ATmega32__)
     Serial.println(F("__AVR_ATmega32__"));
-#elif defined (__AVR_ATmega328__)
+#elif defined(__AVR_ATmega328__)
     Serial.println(F("__AVR_ATmega328__"));
-#elif defined (__AVR_ATmega328P__)
+#elif defined(__AVR_ATmega328P__)
     Serial.println(F("__AVR_ATmega328P__"));
-#elif defined (__AVR_ATmega32U2__)
+#elif defined(__AVR_ATmega32U2__)
     Serial.println(F("__AVR_ATmega32U2__"));
-#elif defined (__AVR_ATmega32U4__)
+#elif defined(__AVR_ATmega32U4__)
     Serial.println(F("__AVR_ATmega32U4__"));
-#elif defined (__AVR_ATmega32U6__)
+#elif defined(__AVR_ATmega32U6__)
     Serial.println(F("__AVR_ATmega32U6__"));
-#elif defined (__AVR_ATmega128__)
+#elif defined(__AVR_ATmega128__)
     Serial.println(F("__AVR_ATmega128__"));
-#elif defined (__AVR_ATmega1280__)
+#elif defined(__AVR_ATmega1280__)
     Serial.println(F("__AVR_ATmega1280__"));
-#elif defined (__AVR_ATmega2560__)
+#elif defined(__AVR_ATmega2560__)
     Serial.println(F("__AVR_ATmega2560__"));
 #endif
 
@@ -276,7 +278,7 @@ void Information(void) {
     Serial.print(F("SIGRD = "));
     Serial.println(SIGRD, DEC);
 #else
-    Serial.println(F("SIGRD : not defined (let's make it 5 and see what happens)."));
+    Serial.println(F("SIGRD : not defined(let's make it 5 and see what happens)."));
 #define SIGRD 5
 #endif
 
@@ -296,12 +298,12 @@ void Information(void) {
     Serial.print(F("calibration = "));
     Serial.println(data3, DEC);
 
-#if !defined (__AVR_ATmega32U4__)
+#if !defined(__AVR_ATmega32U4__)
     Serial.print(F("Number of seconds since start = "));
     Serial.println(millis() / 1000L, DEC);
 #endif
 
-#if defined (__AVR_ATmega328P__)
+#if defined(__AVR_ATmega328P__)
     Serial.print(F("Internal Temperature = "));
     Serial.print(GetTemp(), 1);
     Serial.println(F(" Celsius   (the offset could be wrong)."));
@@ -414,7 +416,7 @@ void printFuses(void) {
         /*
          * PLL Clock has other interpretation of tStartUptimeBits
          */
-        Serial.print(F("14 CK (+ 4ms)"));
+        Serial.print(F("(4ms from reset) + 14 CK "));
         if (tLowFuseBits & ~FUSE_SUT0) {
             Serial.print(F("+ 16384 CK")); // -> 1 ms for 16 MHz clock
         } else {
@@ -429,7 +431,7 @@ void printFuses(void) {
         /*
          * Internal Calibrated RC Oscillator Clock
          */
-        Serial.print(F("6 (+ 14 CK)"));
+        Serial.print(F("6 CK (+ 14 CK"));
         switch (tStartUptimeBits) {
         case 0x10:
             Serial.print(F(" + 4ms"));
@@ -440,6 +442,8 @@ void printFuses(void) {
         default:
             break;
         }
+        Serial.print(F(" from reset)"));
+
     }
 
     uint8_t tHighFuseBits = boot_lock_fuse_bits_get(GET_HIGH_FUSE_BITS);
@@ -501,7 +505,7 @@ void printBODSFlagExistence() {
 }
 #endif //  defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 
-#if !defined (__AVR_ATmega32U4__)
+#if !defined(__AVR_ATmega32U4__)
 #if defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 /*
  * Short version using printHex and saving Flash
@@ -702,5 +706,6 @@ void TimerRegisterDump(void) {
     Timer2RegisterDump();
 }
 #endif
+#endif // AVR
 
-#endif // !defined (__AVR_ATmega32U4__)
+#endif // !defined(__AVR_ATmega32U4__)

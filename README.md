@@ -1,7 +1,7 @@
 # [Frequency Detector](https://github.com/ArminJo/Arduino-FrequencyDetector) Library for Arduino and ATtinys
 Available as Arduino library "FrequencyDetector"
 
-### [Version 2.0.0](https://github.com/ArminJo/Arduino-FrequencyDetector/releases)
+### [Version 2.0.1](https://github.com/ArminJo/Arduino-FrequencyDetector/releases) - work in progress
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
@@ -25,9 +25,9 @@ The value of millis() is adjusted after reading.<br/>
 The alternative to disabling the interrupt is getting partially invalid results!
 
 There are 3 detection ranges available:
-- `FREQUENCY_RANGE_HIGH` -> 13 usec/sample -> 300 to **9612** Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
-- `FREQUENCY_RANGE_DEFAULT` -> 52 usec/sample -> **75 to 2403 Hz with 1024 samples** and 150 to 2403 Hz with 512 samples.
-- `FREQUENCY_RANGE_LOW` -> 104 usec/sample -> **38** to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
+- `FREQUENCY_RANGE_HIGH` -> 13 µs/sample -> 300 to **9612** Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
+- `FREQUENCY_RANGE_DEFAULT` -> 52 µs/sample -> **75 to 2403 Hz with 1024 samples** and 150 to 2403 Hz with 512 samples.
+- `FREQUENCY_RANGE_LOW` -> 104 µs/sample -> **38** to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
 
 ### `readSignal()` is the ADC read routine, which reads 1024 samples (512 for ATtinies) and computes the following values:
   1. Frequency of signal `uint16_t FrequencyRaw`
@@ -45,10 +45,11 @@ and also low pass filters the result for smooth transitions between the 3 match 
   2. Match result `MatchStateEnum FrequencyMatchDirect;`
   3. Low pass filtered match result `MatchStateEnum FrequencyMatchFiltered`
 
-### By enabling `PRINT_INPUT_SIGNAL_TO_PLOTTER` with the Arduino Serial Plotter it can be used as a simple oscilloscope.
+### By enabling `PRINT_INPUT_SIGNAL_TO_PLOTTER` in *FrequencyDetector.h*, it can be used as a simple oscilloscope using the Arduino Serial Plotter.
+![Arduino Plotter output of whistle switch in action](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/SimpleFrequencyDetectorPlotterOutput.png)
 
 # Dependencies
-The [ATtinySerialOut library](https://github.com/ArminJo/ATtinySerialOut) is required for [print functions](src/FrequencyDetector.h#L308) on ATtinies.
+The [ATtinySerialOut library](https://github.com/ArminJo/ATtinySerialOut) is required for [print functions](src/FrequencyDetector.h#L312) on ATtinies.
 
 # SimpleFrequencyDetector example
 This example reads analog signal e.g. from MAX9814 Module at A1 and computes the frequency.
@@ -129,7 +130,7 @@ The setting is stored in EEPROM. Default is `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3` 
 A reset can be performed by power off/on or by pressing the button two times, each time shorter than `RESET_ENTER_BUTTON_PUSH_MILLIS` (0.12 seconds) within a `RESET_WAIT_TIMEOUT_MILLIS` (0.3 seconds) interval.
 
 ## Using a Digispark board
-First install the new [Digistump AVR version](https://github.com/ArminJo/DigistumpArduino#installation) and [update the bootloader](https://github.com/ArminJo/DigistumpArduino#update-the-bootloader).
+First, install the new [Digistump AVR version](https://github.com/ArminJo/DigistumpArduino#installation) and [update the bootloader](https://github.com/ArminJo/DigistumpArduino#update-the-bootloader).
 This enables to have `INFO` outputs on the ATtiny85<br/>
 
 # SCHEMATIC for external components of FrequencyDetector / WhistleSwitch
@@ -218,6 +219,9 @@ External circuit for 20x amplification configuration on a Digispark board.
 ```
 
 # Revision History
+### Version 2.0.1
+- Updated SimpleFrequencyDetector example.
+
 ### Version 2.0.0
 - Added plotter output of input signal.
 - Renamed `doPlausi()` to `doEqualDistributionPlausi()`.

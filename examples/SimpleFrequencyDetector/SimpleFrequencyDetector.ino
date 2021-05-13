@@ -52,7 +52,7 @@
 #define LED_PLAUSI_FIRST  7
 #define LED_PLAUSI_DISTRIBUTION  8
 
-#define INFO
+//#define INFO
 #if ! defined(LED_BUILTIN) && defined(ARDUINO_AVR_DIGISPARK)
 #define LED_BUILTIN PB1
 #endif
@@ -70,12 +70,13 @@
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)
-    delay(2000); // To be able to connect Serial monitor after reset and before first printout
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL) || defined(ARDUINO_attiny3217)
+    delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
     // Just to know which program is running on my Arduino
+#if !defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
     Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_FREQUENCY_DETECTOR));
-
+#endif
     // initialize the digital pin as an output.
     pinMode(LED_PLAUSI_FIRST, OUTPUT);
     pinMode(LED_PLAUSI_DISTRIBUTION, OUTPUT);
@@ -154,7 +155,7 @@ void loop() {
             // signal match
             digitalWrite(LED_BUILTIN, HIGH);
         }
-#if ! defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
+#if !defined(PRINT_RESULTS_TO_SERIAL_PLOTTER) && !defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
     } else {
         // incompatible with Serial Plotter
         Serial.println(reinterpret_cast<const __FlashStringHelper *>(ErrorStrings[tFrequency]));

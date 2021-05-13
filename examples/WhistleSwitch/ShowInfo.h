@@ -59,7 +59,7 @@ void printMCUSR(uint8_t aMCUSRContent);
 void printBODSFlagExistence();
 #endif //  defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 
-#if !defined (__AVR_ATmega32U4__)
+#if !defined(__AVR_ATmega32U4__)
 #  if defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 /*
  * Short version using printHex and saving Flash
@@ -85,7 +85,7 @@ void Timer2RegisterDump(void);
 
 void TimerRegisterDump(void);
 #  endif
-#endif // !defined (__AVR_ATmega32U4__)
+#endif // !defined(__AVR_ATmega32U4__)
 
 #endif /* SHOWINFO_H_ */
 

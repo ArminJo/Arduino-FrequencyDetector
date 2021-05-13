@@ -26,10 +26,10 @@
  *
  */
 
-#if defined(__AVR__)
 #include <Arduino.h>
-
 #include "MillisUtils.h"
+
+#if defined(__AVR__)
 
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
@@ -37,6 +37,16 @@
 #ifndef sbi
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
+
+void delayAndCallFunctionEveryMillis(unsigned int aDelayMillis, void (*aDelayCallback)(void)) {
+    uint32_t tStartMillis = millis();
+    do {
+        if (aDelayCallback != NULL) {
+            aDelayCallback();
+        }
+        delay(1);
+    } while (millis() - tStartMillis <= aDelayMillis);
+}
 
 /*
  *
@@ -95,7 +105,7 @@ bool areMillisGone(unsigned int aMillis) {
     return false;
 }
 
-bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr) {
+bool areMillisGone(unsigned int aMillis, unsigned long *aLastMillisPtr) {
     if (millis() - *aLastMillisPtr >= aMillis) {
         *aLastMillisPtr = millis();
         return true;
@@ -109,31 +119,31 @@ bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr) {
  * calling a function consisting of just __asm__ volatile ("nop"); gives 0 to 1 micro second
  * Use of Serial. makes it incompatible with BlueDisplay library.
  */
-//void speedTestWith1kCalls(void (*aFunctionUnderTest)(void)) {
-//    uint32_t tMillisStart = millis();
-//    for (uint8_t i = 0; i < 100; ++i) {
-//        // unroll 10 times
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//        aFunctionUnderTest();
-//    }
-//    uint32_t tMillisNeeded = millis() - tMillisStart;
-//    Serial.print(F("Function call takes "));
-//    if (tMillisNeeded > 1000000) {
-//        Serial.print(tMillisNeeded / 1000);
-//        Serial.print(",");
-//        Serial.print((tMillisNeeded % 1000) / 100);
-//        Serial.print(F(" milli"));
-//    } else {
-//        Serial.print(tMillisNeeded);
-//        Serial.print(F(" micro"));
-//    }
-//    Serial.println(F(" seconds."));
-//}
+void speedTestWith1kCalls(void (*aFunctionUnderTest)(void)) {
+    uint32_t tMillisStart = millis();
+    for (uint_fast8_t i = 0; i < 100; ++i) {
+        // unroll 10 times
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+        aFunctionUnderTest();
+    }
+    uint32_t tMillisRequired = millis() - tMillisStart;
+    Serial.print(F("Function call takes "));
+    if (tMillisRequired > 1000000) {
+        Serial.print(tMillisRequired / 1000);
+        Serial.print(",");
+        Serial.print((tMillisRequired % 1000) / 100);
+        Serial.print(F(" milli"));
+    } else {
+        Serial.print(tMillisRequired);
+        Serial.print(F(" micro"));
+    }
+    Serial.println(F(" seconds."));
+}

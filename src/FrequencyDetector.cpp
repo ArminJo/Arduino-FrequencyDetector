@@ -382,7 +382,7 @@ uint16_t readSignal() {
 uint16_t doEqualDistributionPlausi() {
     // Only check if no error was detected before
     if (FrequencyDetectorControl.FrequencyRaw > SIGNAL_FREQUENCY_TOO_HIGH) {
-        uint8_t tPeriodCount = FrequencyDetectorControl.PeriodCount; // 64 for 512, 128 for 1024 samples
+        uint_fast8_t tPeriodCount = FrequencyDetectorControl.PeriodCount; // 64 for 512, 128 for 1024 samples
         /*
          * check if not more than 1/8 of periods are out of range - less than 0.75 or more than 1.5
          */
@@ -397,7 +397,7 @@ uint16_t doEqualDistributionPlausi() {
             Serial.print("  ");
             printPeriodLengthArray(&Serial);
 #endif
-        for (uint8_t i = 0; i < tPeriodCount; ++i) {
+        for (uint_fast8_t i = 0; i < tPeriodCount; ++i) {
             if (FrequencyDetectorControl.PeriodLength[i] > tPeriodMax || FrequencyDetectorControl.PeriodLength[i] < tPeriodMin) {
                 tErrorCount++;
             }
@@ -412,7 +412,6 @@ uint16_t doEqualDistributionPlausi() {
             Serial.print(F("  F="));
             Serial.print(FrequencyDetectorControl.FrequencyRaw);
             Serial.println(F("Hz"));
-
 #endif
     }
     return FrequencyDetectorControl.FrequencyRaw;
@@ -421,8 +420,8 @@ uint16_t doEqualDistributionPlausi() {
 /**
  * simple low-pass filter over 15 values
  */
-uint16_t LowPassFilterWith16Values(uint16_t aFilteredValue, uint16_t aValue) {
-    return (((aFilteredValue * 15) + aValue + (1 << 3)) >> 4); // (tValue+8)/16 (+8 to avoid rounding errors)
+uint16_t LowPassFilterWith16Values(int16_t aFilteredValue, int16_t aValue) {
+    return (aFilteredValue + (((aValue - aFilteredValue) + (1 << 3)) >> 4)); // (tValue+8)/16 (+8 to avoid rounding errors)
 }
 
 /**
@@ -517,7 +516,7 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
-void printPeriodLengthArray(Print * aSerial) {
+void printPeriodLengthArray(Print *aSerial) {
     /*
      * Print frequency or error code
      */
@@ -535,7 +534,7 @@ void printPeriodLengthArray(Print * aSerial) {
     aSerial->print(FrequencyDetectorControl.PeriodCount);
     aSerial->print(F(" of " STR(SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI) " content="));
 
-    for (uint8_t i = 0; i < FrequencyDetectorControl.PeriodCount; ++i) {
+    for (uint_fast8_t i = 0; i < FrequencyDetectorControl.PeriodCount; ++i) {
         aSerial->print(FrequencyDetectorControl.PeriodLength[i]);
         aSerial->print(",");
     }
@@ -543,17 +542,16 @@ void printPeriodLengthArray(Print * aSerial) {
 }
 
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
-void printInputSignalValuesForArduinoPlotter(Print * aSerial) {
+void printInputSignalValuesForArduinoPlotter(Print *aSerial) {
     aSerial->print(F("InputValue TriggerLevel="));
     aSerial->print(FrequencyDetectorControl.TriggerLevel);
     aSerial->print(F("  TriggerLevelLower="));
     aSerial->print(FrequencyDetectorControl.TriggerLevelLower);
     aSerial->print(F(" Frequency="));
-    aSerial->print(FrequencyDetectorControl.FrequencyRaw);
-    aSerial->println(F(" _ -")); // to clear old legend strings
+    aSerial->println(FrequencyDetectorControl.FrequencyRaw);
 
 
-    aSerial->println(0);
+    aSerial->println(0); // To signal start of new buffer and to display the 0 line
     for (uint16_t i = 0; i < SIGNAL_PLOTTER_BUFFER_SIZE; ++i) {
         aSerial->print(sReadValueBuffer[i]);
         aSerial->print(' ');
@@ -563,24 +561,24 @@ void printInputSignalValuesForArduinoPlotter(Print * aSerial) {
         aSerial->print(' ');
         aSerial->println(FrequencyDetectorControl.FrequencyRaw);
     }
-    aSerial->println(0);
+    aSerial->println();
 }
 #endif
 
-void printTriggerValues(Print * aSerial) {
+void printTriggerValues(Print *aSerial) {
     aSerial->print(F("TriggerLower="));
     aSerial->print(FrequencyDetectorControl.TriggerLevelLower);
     aSerial->print(" Upper=");
     aSerial->println(FrequencyDetectorControl.TriggerLevel);
 }
 
-void printLegendForArduinoPlotter(Print * aSerial) {
+void printLegendForArduinoPlotter(Print *aSerial) {
     aSerial->println(
             F(
                     "FrequencyMatchDirect*95 MatchDropoutCount*13  MatchLowPassFiltered*2 FrequencyMatchFiltered*100 FrequencyRaw FrequencyFiltered"));
 }
 
-void printDataForArduinoPlotter(Print * aSerial) {
+void printDataForArduinoPlotter(Print *aSerial) {
     static uint8_t sConsecutiveErrorCount = 0; // Print only 10 errors, then stop
 
     if (sConsecutiveErrorCount >= 10) {

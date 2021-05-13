@@ -51,7 +51,7 @@ jobs:
         #############################################################################################################
         include:
           - arduino-boards-fqbn: arduino:avr:uno|All-DEBUG # UNO board with -DDEBUG for all examples
-            sketches-exclude: 50Hz # Comma separated list of (unique substrings of) example names to exclude in build
+            sketches-exclude: 50Hz # Comma separated list of example names to exclude in build
             build-properties:
               All: -DDEBUG -DINFO
               WhistleSwitch: -DDEBUG
@@ -97,7 +97,8 @@ jobs:
           ENV_SKETCHES_EXCLUDE: ${{ matrix.sketches-exclude }}
           ENV_BUILD_PROPERTIES: ${{ toJson(matrix.build-properties) }}
           ENV_SKETCH_NAMES: ${{ matrix.sketch-names }}
-          ENV_SKETCH_NAMES_FILE_START: .
+          ENV_SKETCH_NAMES_FIND_START: .
+          ENV_DEBUG_INSTALL: true
           ENV_DEBUG_COMPILE: true
 
         run: |
