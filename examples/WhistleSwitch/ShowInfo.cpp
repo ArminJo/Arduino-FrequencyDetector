@@ -487,11 +487,12 @@ void printFuses(void) {
         Serial.print(F(" not"));
     }
     Serial.println(F(" enabled"));
+    Serial.println();
 }
 
 void printBODSFlagExistence() {
     /*
-     * Turn off the brown-out detector - this works only for ATtini85 revision C, which is quite unpopular (2019) on Chinese boards.
+     * Turn off the brown-out detector - this works only for ATtini85 revision C, which I have not seen in the wild.
      */
     uint8_t tMcucrValue = MCUCR | _BV(BODS) | _BV(BODSE);  // set to one
     MCUCR = tMcucrValue; // set both flags to one
@@ -615,12 +616,18 @@ void TimerRegisterDump(void) {
 #if ! defined(ARDUINO_AVR_DIGISPARKPRO)
 void ADCChannelDump(void) {
     Serial.println(F("ADC channel dump:"));
+#ifdef A0
     Serial.print(F("A0="));
     Serial.println(analogRead(A0));
+#endif
+#ifdef A1
     Serial.print(F("A1="));
     Serial.println(analogRead(A1));
+#endif
+#ifdef A2
     Serial.print(F("A2="));
     Serial.println(analogRead(A2));
+#endif
     Serial.print(F("A3="));
     Serial.println(analogRead(A3));
     Serial.print(F("1.1V="));

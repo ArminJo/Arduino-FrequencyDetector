@@ -7,7 +7,7 @@ Available as Arduino library "FrequencyDetector"
 [![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
 [![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithAction/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
 [![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithScript/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
-[![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fgithub.com%2FArminJo%2FArduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
+[![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https://github.com/ArminJo/Arduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
 
 Detects frequency **from 38 Hz to 9612 Hz** and works even on an ATTiny85 with 1 MHz up to 4806 Hz. The input signal can be plotted to the Arduino Serial Plotter resulting in a **simple Oscilloscope** to test the internal signal.
 
@@ -93,10 +93,10 @@ the following pitch ranges are predefined for easy selection:
 8.   1250 - 1530 Hz  -> 380 Hz DS6-G6
 9.   1000 - 1230 Hz  -> 230 Hz C6-DS6
 
-10.  Dummy range, if chosen, disables relay on timeout handling.
-11.  Dummy range, if chosen, sets relay on timeout to `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_1` (2 hours).
-12.  Dummy range, if chosen, sets relay on timeout to `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2` (4 hours).
-13.  Dummy range, if chosen, sets relay on timeout to `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3` (8 hours).
+10.  Dummy range, if chosen, disables "relay on" timeout handling.
+11.  Dummy range, if chosen, sets "relay on" timeout to 2 hours.
+12.  Dummy range, if chosen, sets "relay on" timeout to 4 hours.
+13.  Dummy range, if chosen, sets "relay on" timeout to 8 hours.
 
 ## SELECTING the RANGE
 Selecting is started by a long press of the button.

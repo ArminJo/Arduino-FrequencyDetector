@@ -48,7 +48,7 @@
  *  otherwise the relay will switch OFF.
  *  Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off.
  *  Timeout can be switched on by selecting the dummy ranges 11 to 13 and off by selecting the dummy range 10.
- *  Default is TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3 (8 hours).
+ *  Default is TIMEOUT_RELAY_ON_SIGNAL_8_HOURS.
  *
  *  PROGRAMMING
  *  Programming is done by a long press of the button.
@@ -87,9 +87,9 @@
  9.   1000 - 1230 Hz  -> 230 Hz C6-DS6
 
  10  dummy range, if chosen disable relay on timeout handling.
- 11  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_MINUTES_1 (2 hours).
- 12  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2 (4 hours).
- 13  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3 (8 hours).
+ 11  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_2_HOURS (2 hours).
+ 12  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_4_HOURS (4 hours).
+ 13  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_8_HOURS   (8 hours).
  *
  *  BUTTON
  *  Button state change is handled by an InterruptServiceRoutine
@@ -116,6 +116,7 @@
  */
 
 #include <Arduino.h>
+
 #include "FrequencyDetector.h"
 
 #define VERSION_EXAMPLE "8.1"
@@ -282,7 +283,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
  * Attiny85
  */
 #if (defined(INFO) || defined(DEBUG) || defined(TRACE))
-#include "ATtinySerialOut.h" // Available as Arduino library
+#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
 #endif
 
 // defines for EasyButton below.
@@ -340,7 +341,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #endif
 
 #define USE_BUTTON_1  // Enable code for button at INT1 (pin3 on 328P, PA3 on ATtiny167, PCINT0 / PCx for ATtinyX5)
-#include "EasyButtonAtInt01.cpp.h"
+#include "EasyButtonAtInt01.hpp"
 void handleButtonPress(bool aButtonToggleState);
 void handleButtonRelease(bool aButtonToggleState, uint16_t aButtonPressDurationMillis);
 EasyButton ButtonAtPin3(&handleButtonPress, &handleButtonRelease); // Only one button enabled -> button is connected to INT1
@@ -364,11 +365,11 @@ EasyButton ButtonAtPin3(&handleButtonPress, &handleButtonRelease); // Only one b
 // Timeout for relay ON
 #define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_MAX (1193 * 60) // -> 49.7 days
 // after this time, the relay is switched OFF and ON to signal timeout
-#define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_1     120       // 2 hours timeout for state 1
-#define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2     (2*120)   // 4 hours timeout for state 2
-#define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3     (4*120)   // 8 hours timeout for state 2
-uint16_t sTimeoutRelayOnMinutesArray[] = { 0, TIMEOUT_RELAY_ON_SIGNAL_MINUTES_1, TIMEOUT_RELAY_ON_SIGNAL_MINUTES_2,
-TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3 };
+#define TIMEOUT_RELAY_ON_SIGNAL_2_HOURS      (2*60)   // 2 hours timeout
+#define TIMEOUT_RELAY_ON_SIGNAL_4_HOURS      (4*60)   // 4 hours timeout
+#define TIMEOUT_RELAY_ON_SIGNAL_8_HOURS      (8*60)   // 8 hours timeout
+uint16_t sTimeoutRelayOnMinutesArray[] = { 0, TIMEOUT_RELAY_ON_SIGNAL_2_HOURS, TIMEOUT_RELAY_ON_SIGNAL_4_HOURS,
+TIMEOUT_RELAY_ON_SIGNAL_8_HOURS   };
 #define TIMEOUT_RELAY_ON_MINUTES_ARRAY_SIZE  (sizeof(sTimeoutRelayOnMinutesArray)/sizeof(sTimeoutRelayOnMinutesArray[0]))
 
 #define TIMEOUT_RELAY_ON_INDEX_DISABLED 0

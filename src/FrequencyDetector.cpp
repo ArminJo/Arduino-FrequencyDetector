@@ -248,7 +248,7 @@ uint16_t readSignal() {
     /*
      * Read 512/1024 samples but only store periods
      */
-    for (uint16_t i = 0; i < NUMBER_OF_SAMPLES; i++) {
+    for (unsigned int i = 0; i < NUMBER_OF_SAMPLES; i++) {
         // loop takes around 39 cycles at least and we have 52 cycles @1MHz between each conversion
         /*
          * wait for free running conversion to finish.
@@ -552,7 +552,7 @@ void printInputSignalValuesForArduinoPlotter(Print *aSerial) {
 
 
     aSerial->println(0); // To signal start of new buffer and to display the 0 line
-    for (uint16_t i = 0; i < SIGNAL_PLOTTER_BUFFER_SIZE; ++i) {
+    for (unsigned int i = 0; i < SIGNAL_PLOTTER_BUFFER_SIZE; ++i) {
         aSerial->print(sReadValueBuffer[i]);
         aSerial->print(' ');
         aSerial->print(FrequencyDetectorControl.TriggerLevel);

@@ -58,7 +58,7 @@
 #endif
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
-#include "ATtinySerialOut.h" // Available as Arduino library
+#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
 #endif
 
 #include "FrequencyDetector.h"
