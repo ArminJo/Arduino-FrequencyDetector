@@ -11,8 +11,9 @@
  *  #define USE_BUTTON_0
  *  #include "EasyButtonAtInt01.h"
  *  EasyButton Button0AtPin2(true);
+ *  The macros/symbols INT0_PIN and INT1_PIN are set after the include.
  *
- *  Copyright (C) 2018  Armin Joachimsmeyer
+ *  Copyright (C) 2018-2022  Armin Joachimsmeyer
  *  armin.joachimsmeyer@gmail.com
  *
  *  This file is part of EasyButtonAtInt01 https://github.com/ArminJo/EasyButtonAtInt01.
@@ -28,17 +29,24 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  */
 
-#ifndef EASY_BUTTON_AT_INT01_H_
-#define EASY_BUTTON_AT_INT01_H_
+#ifndef _EASY_BUTTON_AT_INT01_H
+#define _EASY_BUTTON_AT_INT01_H
 
-#define VERSION_EASY_BUTTON "3.2.0"
+#define VERSION_EASY_BUTTON "3.3.2"
 #define VERSION_EASY_BUTTON_MAJOR 3
-#define VERSION_EASY_BUTTON_MINOR 2
+#define VERSION_EASY_BUTTON_MINOR 3
+#define VERSION_EASY_BUTTON_PATCH 2
 // The change log is at the bottom of the file
 
+/*
+ * Macro to convert 3 version parts into an integer
+ * To be used in preprocessor comparisons, such as #if VERSION_EASY_BUTTON_HEX >= VERSION_HEX_VALUE(3, 0, 0)
+ */
+#define VERSION_HEX_VALUE(major, minor, patch) ((major << 16) | (minor << 8) | (patch))
+#define VERSION_EASY_BUTTON_HEX  VERSION_HEX_VALUE(VERSION_EASY_BUTTON_MAJOR, VERSION_EASY_BUTTON_MINOR, VERSION_EASY_BUTTON_PATCH)
 #if defined(__AVR__)
 #include <Arduino.h>
 
@@ -62,7 +70,7 @@
 /*
  * Define USE_ATTACH_INTERRUPT to force use of the arduino function attachInterrupt().
  * It is required if you get the error " multiple definition of `__vector_1'" (or `__vector_2'), because another library uses the attachInterrupt() function.
- * For one button it needs additional 160 bytes FLASH, for 2 buttons it needs additional 88 bytes.
+ * For one button it needs additional 160 bytes program memory, for 2 buttons it needs additional 88 bytes.
  */
 //#define USE_ATTACH_INTERRUPT
 //
@@ -79,12 +87,12 @@
  * this is the time between first level change and last bouncing level change during BUTTON_DEBOUNCING_MILLIS
  */
 //#define ANALYZE_MAX_BOUNCING_PERIOD
-#ifndef BUTTON_DEBOUNCING_MILLIS
+#if !defined(BUTTON_DEBOUNCING_MILLIS)
 #define BUTTON_DEBOUNCING_MILLIS 50 // 35 millis measured for my button :-).
 #endif
 
 /*
- * Activate this to save 2 bytes RAM and 64 bytes FLASH
+ * Activating this enables save 2 bytes RAM and 64 bytes program memory
  */
 //#define NO_BUTTON_RELEASE_CALLBACK
 //
@@ -116,26 +124,28 @@
 //#define MEASURE_EASY_BUTTON_INTERRUPT_TIMING
 
 #if defined(MEASURE_EASY_BUTTON_INTERRUPT_TIMING)
-#  ifndef INTERRUPT_TIMING_OUTPUT_PIN
+#  if !defined(INTERRUPT_TIMING_OUTPUT_PIN)
 #define INTERRUPT_TIMING_OUTPUT_PIN 6  // use pin 6
 //#define INTERRUPT_TIMING_OUTPUT_PIN 12  // use pin 12
 #  endif
 #endif
 
 //#define TRACE
-#ifdef TRACE
+#if defined(TRACE)
 #warning If using TRACE, the timing of the interrupt service routine changes, e.g. you will see more spikes, than expected!
 #endif
 
 /*
- * These defines are here to enable saving of 150 bytes FLASH if only one button is needed
+ * These defines are here to enable saving of 150 bytes program memory if only one button is needed
  */
 //#define USE_BUTTON_0
 //#define USE_BUTTON_1
 #if ! (defined(USE_BUTTON_0) || defined(USE_BUTTON_1))
 #error USE_BUTTON_0 and USE_BUTTON_1 are not defined, please define them or remove the #include "EasyButtonAtInt01.h"
 #endif
-
+// Can be be used as parameter
+#define BUTTON_AT_INT0 ((bool)true)
+#define BUTTON_AT_INT1_OR_PCINT ((bool)false)
 /*
  * Pin and port definitions for Arduinos
  */
@@ -248,9 +258,6 @@
 #define INT0_BIT INT0_PIN
 #endif
 
-#define BUTTON_AT_INT0 ((bool)true)
-#define BUTTON_AT_INT1_OR_PCINT ((bool)false)
-
 class EasyButton {
 
 public:
@@ -276,6 +283,7 @@ public:
 #endif
 
     void init(bool aIsButtonAtINT0);
+    bool enablePCIInterrupt();
 
     /*
      * !!! checkForDoublePress() works only reliable if called in button press callback function !!!
@@ -363,6 +371,12 @@ void __attribute__ ((weak)) handleINT1Interrupt();
 #endif // defined(__AVR__)
 
 /*
+ *  Version 3.3.2 - 9/2022
+ *  - Added NO_INITIALIZE_IN_CONSTRUCTOR macro to enable late initializing.
+ *
+ *  Version 3.3.1 - 2/2022
+ *  - Avoid mistakenly double press detection after boot.
+ *
  *  Version 3.3.0 - 9/2021
  *  - Renamed EasyButtonAtInt01.cpp.h to EasyButtonAtInt01.hpp.
  *
@@ -391,6 +405,4 @@ void __attribute__ ((weak)) handleINT1Interrupt();
  * - Renamed to EasyButtonAtInt01.hpp
  */
 
-#endif /* EASY_BUTTON_AT_INT01_H_ */
-
-#pragma once
+#endif // _EASY_BUTTON_AT_INT01_H

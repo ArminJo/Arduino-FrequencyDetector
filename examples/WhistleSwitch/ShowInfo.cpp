@@ -17,7 +17,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
 
@@ -45,7 +45,7 @@ float GetTemp(void) {
     // This code is not valid for the Arduino Mega,
     // and the Arduino Mega 2560.
 
-#ifdef THIS_MIGHT_BE_VALID_IN_THE_FUTURE
+#if defined(THIS_MIGHT_BE_VALID_IN_THE_FUTURE)
     analogReference (INTERNAL);
     delay(20);            // wait for voltages to become stable.
     wADC = analogRead(8);// Channel 8 is temperature sensor.
@@ -144,7 +144,7 @@ void Information(void) {
     Serial.println(F("%)"));
 #endif
 
-#ifdef ARDUINO
+#if defined(ARDUINO)
     Serial.print(F("ARDUINO = "));
     Serial.print(ARDUINO);
     Serial.print(F(" (Arduino version "));
@@ -274,7 +274,7 @@ void Information(void) {
     Serial.println(F("__AVR_ATmega2560__"));
 #endif
 
-#ifdef SIGRD
+#if defined(SIGRD)
     Serial.print(F("SIGRD = "));
     Serial.println(SIGRD, DEC);
 #else
@@ -310,9 +310,9 @@ void Information(void) {
 #endif
 
     Serial.println(F("UTF-8 test:"));
-    Serial.println(F("    Micro µ µ µ µ µ µ µ µ µ µ"));
-    Serial.println(F("    Euro  € € € € € € € € € €"));
-    Serial.println(F("    (c)   © © © © © © © © © ©"));
+    Serial.println(F("    Micro �"));
+    Serial.println(F("    Euro  �"));
+    Serial.println(F("    (c)   �"));
 
     Serial.println(F("-----------"));
 #endif
@@ -616,15 +616,15 @@ void TimerRegisterDump(void) {
 #if ! defined(ARDUINO_AVR_DIGISPARKPRO)
 void ADCChannelDump(void) {
     Serial.println(F("ADC channel dump:"));
-#ifdef A0
+#if defined(A0)
     Serial.print(F("A0="));
     Serial.println(analogRead(A0));
 #endif
-#ifdef A1
+#if defined(A1)
     Serial.print(F("A1="));
     Serial.println(analogRead(A1));
 #endif
-#ifdef A2
+#if defined(A2)
     Serial.print(F("A2="));
     Serial.println(analogRead(A2));
 #endif

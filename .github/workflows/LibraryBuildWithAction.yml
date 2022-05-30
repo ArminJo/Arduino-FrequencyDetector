@@ -64,14 +64,14 @@ jobs:
         uses: actions/checkout@master
 
       - name: Checkout master version of ATtinySerialOut
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: ArminJo/ATtinySerialOut
           ref: master
           path: CustomLibrary # must contain string "Custom"
 
 #      - name: Checkout second custom library # This name must be different from th one above
-#        uses: actions/checkout@v2
+#        uses: actions/checkout@v3
 #        with:
 #          repository: ArminJo/Arduino-Utils
 #          ref: master

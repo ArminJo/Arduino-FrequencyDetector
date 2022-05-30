@@ -20,7 +20,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  *  It uses FrequencyDetector to recognize a whistle pitch which in turn operates a mains relay.
  *  By using different pitches it is possible to control multiple relays in a single room.
@@ -38,7 +38,7 @@
  *
  *  INFO
  *  After power up or reset, the feedback LED echoes the range number. Range number 10 indicates an individual range, programmed by advanced programming.
- *  The timeout state is signaled by short LED pulses after the range number feedback (no short pulse -> no timeout enabled).
+ *  The timeout state is signaled by short LED pulses after the range number feedback (no short pulse -> no timeout enabled, 1 -> 2h, 2 -> 4h, 3 -> 8h).
  *  If the button is pressed during the info / startup, the ADC ((AverageLevel + 50) / 100) is signaled after the timeout signaling.
  *      Range is from 0 to 10. Values of 4 to 6 are optimal.
  *
@@ -89,7 +89,7 @@
  10  dummy range, if chosen disable relay on timeout handling.
  11  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_2_HOURS (2 hours).
  12  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_4_HOURS (4 hours).
- 13  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_8_HOURS   (8 hours).
+ 13  dummy range, if chosen set relay on timeout to TIMEOUT_RELAY_ON_SIGNAL_8_HOURS (8 hours).
  *
  *  BUTTON
  *  Button state change is handled by an InterruptServiceRoutine
@@ -127,7 +127,6 @@
 
 /*
  * Use ATtiny85 ADC 20x amplification
- * Required if we have
  * This requires ADC2 as signal input and ADC3 as signal reference / button input
  * If not defined, the 1x amplification is used with a more digispark compatible pin layout
  */
@@ -158,16 +157,17 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #include <avr/eeprom.h>
 #include <avr/wdt.h>
 
-// ATMEL ATTINY85 - 1x LAYOUT - direct compatible with Digispark boards.
+// ATMEL ATTINY85 - LEGACY LAYOUT - for my old PCBs
 //
 //                                                          +-\/-+
 //  RESET                  PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  Vcc
 //  BUTTON   USB+ - PCINT3/XTAL1/CLKI/!OC1B/ADC3 (D3) PB3  2|    |7  PB2 (D2) SCK/USCK/SCL/ADC1/T0/INT0/PCINT2 - SIGNAL_IN
-//  RELAY_OUT USB- - PCINT4/XTAL2/CLKO/OC1B/ADC2 (D4) PB4  3|    |6  PB1 (D1) MISO/DO/AIN1/OC0B/OC1A/PCINT1 - LED_BUILTIN / LED_FEEDBACK
-//                                                    GND  4|    |5  PB0 (D0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0 - DEBUG TX
+//  RELAY_OUT USB- - PCINT4/XTAL2/CLKO/OC1B/ADC2 (D4) PB4  3|    |6  PB1 (D1) MISO/DO/AIN1/OC0B/OC1A/PCINT1 - DEBUG TX
+//                                                    GND  4|    |5  PB0 (D0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0 - LED_BUILTIN / LED_FEEDBACK
 //                                                          +----+
 //
-// ATMEL ATTINY85 -  20x LAYOUT - must remove PB4 connection and capacitor between PB3 and PB4 before programming board with micronucleus.
+// Direct compatible with Digispark boards.
+// ATMEL ATTINY85 -  1x and 20x LAYOUT - must remove PB4 connection and capacitor between PB3 and PB4 before programming board with micronucleus.
 //
 //                                                          +-\/-+
 //  RESET                  PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  Vcc
@@ -288,6 +288,21 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 
 // defines for EasyButton below.
 #define BUTTON_PIN 3
+
+#ifdef LEGACY_LAYOUT
+// for existing Whistle Switches
+#define ADC_CHANNEL ADC_CHANNEL_DEFAULT // Channel ADC1 / PB2 defined in FrequencyDetector.h
+#define ADC_REFERENCE DEFAULT
+#define RELAY_OUT 4
+#define LED_FEEDBACK 0
+#define DEBUG_PIN 1
+#  if (defined(INFO) || defined(DEBUG) || defined(TRACE)) && (TX_PIN != DEBUG_PIN)
+#error "Change TX_PIN definition in ATtinySerialOut.h to match DEBUG_PIN."
+#  endif
+
+#else // LEGACY_LAYOUT
+// Standard layout Digispark compatible - LED at D1 - But button and signal in clamped by 3V3 zener diode!!!
+
 // Pin 3 is clamped by 3V3 zener diode. If we want to have button ACTIVE_LOW we must add a 10k pullup resistor, which requires 0.25 mA and gives a low noise margin.
 #define BUTTON_IS_ACTIVE_HIGH
 
@@ -295,11 +310,12 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define LED_FEEDBACK 1  // Digispark LED pin
 #define DEBUG_PIN 2
 #  if (defined(INFO) || defined(DEBUG) || defined(TRACE)) && (TX_PIN != DEBUG_PIN)
-#error Change TX_PIN definition in TinySerialOut.h to match DEBUG_PIN.
+#error Change TX_PIN definition in ATtinySerialOut.h to match DEBUG_PIN.
 #  endif
 
+
 #define ADC_REFERENCE INTERNAL  // 1V1
-#ifdef USE_ATTINY85_20X_AMPLIFICATION
+#if defined(USE_ATTINY85_20X_AMPLIFICATION)
 // Here button pin is also used as differential input, therefore need inverse logic -> active is HIGH
 // Signal in clamped by 3V3 zener diode!!!
 #define ADC_CHANNEL 7           // Differential input (ADC2/PB4 - ADC3/PB3(Button)) * 20
@@ -308,7 +324,9 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define ADC_CHANNEL 2           // Channel ADC2 / PB4 - Signal in clamped by 3V3 zener diode!!!
 #endif // USE_ATTINY85_20X_AMPLIFICATION
 
-#ifdef MEASURE_TIMING
+#endif // LEGACY_LAYOUT
+
+#if defined(MEASURE_TIMING)
 #define READ_SIGNAL_TIMING_OUTPUT_PIN LED_FEEDBACK
 #endif
 
@@ -334,13 +352,13 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define READ_SIGNAL_TIMING_OUTPUT_PIN 12
 #endif // (__AVR_ATmega328P__)
 
-#ifdef USE_ATTINY85_20X_AMPLIFICATION
+#if defined(USE_ATTINY85_20X_AMPLIFICATION)
 #define AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT 0x10 // to suppress high noise for printing
 #else
 #define AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT 0x04 // to suppress lower noise for printing
 #endif
 
-#define USE_BUTTON_1  // Enable code for button at INT1 (pin3 on 328P, PA3 on ATtiny167, PCINT0 / PCx for ATtinyX5)
+#define USE_BUTTON_1  // Enable code for button at INT1 (pin3 on 328P, PA3 on ATtiny167, PB3/PCINT3 for ATtinyX5)
 #include "EasyButtonAtInt01.hpp"
 void handleButtonPress(bool aButtonToggleState);
 void handleButtonRelease(bool aButtonToggleState, uint16_t aButtonPressDurationMillis);
@@ -369,7 +387,7 @@ EasyButton ButtonAtPin3(&handleButtonPress, &handleButtonRelease); // Only one b
 #define TIMEOUT_RELAY_ON_SIGNAL_4_HOURS      (4*60)   // 4 hours timeout
 #define TIMEOUT_RELAY_ON_SIGNAL_8_HOURS      (8*60)   // 8 hours timeout
 uint16_t sTimeoutRelayOnMinutesArray[] = { 0, TIMEOUT_RELAY_ON_SIGNAL_2_HOURS, TIMEOUT_RELAY_ON_SIGNAL_4_HOURS,
-TIMEOUT_RELAY_ON_SIGNAL_8_HOURS   };
+TIMEOUT_RELAY_ON_SIGNAL_8_HOURS };
 #define TIMEOUT_RELAY_ON_MINUTES_ARRAY_SIZE  (sizeof(sTimeoutRelayOnMinutesArray)/sizeof(sTimeoutRelayOnMinutesArray[0]))
 
 #define TIMEOUT_RELAY_ON_INDEX_DISABLED 0
@@ -513,7 +531,7 @@ void setMillisNeededForValidMatch(uint16_t aPeriodValidNeededMillis) {
     WhistleSwitchControl.MillisNeededForValidMatch = aPeriodValidNeededMillis;
     WhistleSwitchControl.MatchValidRequired = aPeriodValidNeededMillis / FrequencyDetectorControl.PeriodOfOneReadingMillis;
 
-#ifdef TRACE
+#if defined(TRACE)
     Serial.print("MatchValidNeeded=");
     Serial.print(WhistleSwitchControl.MatchValidRequired);
     Serial.print(F(" MillisNeededForValidMatch="));
@@ -528,7 +546,7 @@ void eepromWriteParameter() {
     sPersistentParameters.RelayOnTimeoutIndex = WhistleSwitchControl.RelayOnTimeoutIndex;
     eeprom_write_block((void*) &sPersistentParameters, &sPersistentParametersEEPROM, sizeof(EepromParameterStruct));
 
-#ifdef INFO
+#if defined(INFO)
     Serial.print(F("FrequencyMin="));
     Serial.print(sPersistentParameters.FrequencyMin);
     Serial.print(F(" FrequencyMax="));
@@ -544,7 +562,7 @@ void eepromWriteParameter() {
 
 void eepromReadParameter() {
     // read parameter structure except timeout
-#ifdef DEBUG
+#if defined(DEBUG)
     Serial.print(F("&sPersistentParametersEEPROMs="));
     Serial.println((uint16_t) &sPersistentParametersEEPROM, HEX);
 #endif
@@ -567,7 +585,7 @@ void eepromReadParameter() {
         FrequencyDetectorControl.FrequencyMatchHigh = predefinedRangesEnd[1];
         WhistleSwitchControl.MillisNeededForValidMatch = MATCH_MILLIS_NEEDED_DEFAULT;
         WhistleSwitchControl.RelayOnTimeoutIndex = TIMEOUT_RELAY_ON_INDEX_DEFAULT; // set to 8 hours
-#ifdef INFO
+#if defined(INFO)
         Serial.println(F("EEPROM values were wrong, store default values to EEPROM"));
 #endif
         eepromWriteParameter();
@@ -590,7 +608,7 @@ void signalRangeIndexByLed() {
         }
     }
 
-#ifdef INFO
+#if defined(INFO)
     Serial.print(F("Frequency match range index="));
     Serial.println(i + 1);
 #endif
@@ -618,7 +636,7 @@ void signalAverageLevelByLed() {
 }
 
 void signalTimeoutByLed() {
-#ifdef INFO
+#if defined(INFO)
     Serial.print(F("RelayOnTimeoutIndex="));
     Serial.println(WhistleSwitchControl.RelayOnTimeoutIndex);
 #endif
@@ -798,7 +816,7 @@ void printInfos() {
         sAverageLevelPrinted = FrequencyDetectorControl.TriggerLevel;
         sSignalDeltaPrinted = FrequencyDetectorControl.SignalDelta;
 
-#  ifdef TRACE
+#  if defined(TRACE)
 #    if defined(__AVR_ATtiny85__)
         writeString(F("FF="));
         writeUnsignedInt(FrequencyDetectorControl.FrequencyFiltered);
@@ -848,7 +866,7 @@ void MyInit(void) {
  * Setup section
  *******************************************************************************************/
 void setup() {
-#ifdef INFO
+#if defined(INFO)
     uint8_t tMCUSRStored = 0;
     if (MCUSR != 0) {
         tMCUSRStored = MCUSR; // content of MCUSR register at startup
@@ -873,7 +891,7 @@ void setup() {
 
 #else // defined(__AVR_ATtiny85__)
     Serial.begin(115200);
-#  if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #  endif
 
@@ -891,10 +909,22 @@ void setup() {
 
     WhistleSwitchControl.MainState = IN_SETUP;
 
-#ifdef INFO
+#if defined(INFO)
     // Just to know which program is running on my Arduino
     Serial.print(F("\r\nSTART WhistleSwitch.cpp\r\nVersion " VERSION_EXAMPLE " from " __DATE__"\r\nMCUSR=0x"));
-    Serial.println(tMCUSRStored, HEX);
+    Serial.print(tMCUSRStored, HEX);
+    Serial.print(F(" ADC channel="));
+    Serial.print(ADC_CHANNEL);
+#if defined(USE_ATTINY85_20X_AMPLIFICATION)
+    Serial.print(F(", 20x"));
+#else
+    Serial.print(F(", 1x"));
+#endif
+    Serial.print(F(" amplification, relay pin=" STR(RELAY_OUT) ", LED pin=" STR(LED_FEEDBACK) ", button pin=" STR(INT1_PIN)));
+#if defined(DEBUG_PIN)
+    Serial.print(F(", TX pin=" STR(DEBUG_PIN)));
+#endif
+    Serial.println();
 #  if defined(__AVR_ATtiny85__)
     printBODLevel();
 #  endif
@@ -911,13 +941,13 @@ void setup() {
 // get frequency parameter from eeprom
     eepromReadParameter();
 
-#ifdef INFO
+#if defined(INFO)
     Serial.print(F("Free Ram/Stack[bytes]="));
     Serial.println(getFreeRam());
 
-    Serial.println(
-            F(
-                    "Delay initial=" STR(MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) "ms total=" STR(MATCH_MILLIS_NEEDED_DEFAULT + MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) "ms"));
+    Serial.print(F("Tone detection no dropout before display=" STR(MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) "ms, before relay="));
+    Serial.print(MATCH_MILLIS_NEEDED_DEFAULT + MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH);
+    Serial.println(F("ms"));
 
     Serial.print(F("Frequency min="));
     Serial.print(FrequencyDetectorControl.FrequencyMatchLow);
@@ -964,7 +994,7 @@ void setup() {
  ************************************************************************/
 void loop(void) {
 
-#ifdef INFO
+#if defined(INFO)
     static uint8_t sLastPrintedMainState;
 
     if (WhistleSwitchControl.MainState != sLastPrintedMainState) {
@@ -1087,11 +1117,11 @@ void detectFrequency() {
      * readSignal() needs 26,6 ms for one loop at attiny85 1 MHz
      * Remaining of loop needs 260 cycles, but with debug output at 115200Baud it needs 7500 cycles.
      */
-#ifdef MEASURE_TIMING
+#if defined(MEASURE_TIMING)
     digitalWriteFast(TIMING_OUTPUT_PIN, HIGH);
 #endif
     uint16_t tFrequency = readSignal(); // needs 26.6 millis
-#ifdef MEASURE_TIMING
+#if defined(MEASURE_TIMING)
             digitalWriteFast(TIMING_OUTPUT_PIN, LOW);
 #endif
 
@@ -1133,7 +1163,7 @@ void detectFrequency() {
     }
 #endif
 
-#ifdef DEBUG
+#if defined(DEBUG)
     printInfos();
 #endif
 
@@ -1285,7 +1315,7 @@ void handleButtonPress(bool __attribute__((unused)) aButtonToggleState) {
 
     case PROGRAM_SIMPLE:
         WhistleSwitchControl.ButtonPressCounter++;
-#ifdef INFO
+#if defined(INFO)
         Serial.print("Count=");
         Serial.println(WhistleSwitchControl.ButtonPressCounter);
 #endif

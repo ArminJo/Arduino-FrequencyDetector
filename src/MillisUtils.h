@@ -17,12 +17,12 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
 
-#ifndef MILLIS_UTILS_H_
-#define MILLIS_UTILS_H_
+#ifndef _MILLIS_UTILS_H
+#define _MILLIS_UTILS_H
 
 #include <stdint.h>
 #if defined(__AVR__)
@@ -59,6 +59,4 @@ void delayMilliseconds(unsigned int aMillis);
 bool areMillisGone(unsigned int aMillis);
 bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr);
 
-#endif // MILLIS_UTILS_H_
-
-#pragma once
+#endif // _MILLIS_UTILS_H

@@ -3,7 +3,7 @@
  *
  * Analyzes a microphone signal and outputs the detected frequency. It simply counts zero crossings and do not use FFT.
  * The ADC sample data is NOT stored in RAM, only the period lengths are stored in the PeriodLength[] array,
- * which is a byte array and has the size of NUMBER_OF_SAMPLES / 8.
+ * which is a byte array and has the size of NUMBER_OF_2_COMPRESSED_SAMPLES / 8.
  *
  * The timer 0 interrupt, which counts the milliseconds, is disabled during reading and enabled afterwards!
  * The value of millis() is adjusted after reading.
@@ -27,7 +27,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  *  FEATURES;
  *  readSignal() is the ADC read routine, which reads 1024/512 samples and computes frequency of signal.
@@ -55,7 +55,7 @@
 #if defined(MEASURE_READ_SIGNAL_TIMING)
 #include "digitalWriteFast.h"
 // Pin is initialized at setFrequencyDetectorReadingValues().
-#  ifndef READ_SIGNAL_TIMING_OUTPUT_PIN
+#  if !defined(READ_SIGNAL_TIMING_OUTPUT_PIN)
 #    if (defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__))
 #define READ_SIGNAL_TIMING_OUTPUT_PIN 1  // use pin 1 / LED_BUILTIN for Digispark
 #    else
@@ -121,11 +121,11 @@ void setFrequencyDetectorReadingPrescaleValue(uint8_t aADCPrescalerValue) {
     //Formula is F_CPU / (PrescaleFactor * 13)
     FrequencyDetectorControl.PeriodOfOneSampleMicros = ((1 << aADCPrescalerValue) * 13) / (F_CPU / 1000000L);
     FrequencyDetectorControl.PeriodOfOneReadingMillis = ((FrequencyDetectorControl.PeriodOfOneSampleMicros
-            * (uint32_t) NUMBER_OF_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP) / 1000;
+            * (uint32_t) NUMBER_OF_2_COMPRESSED_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP) / 1000;
     uint32_t tFrequencyOfOneSample = 1000000L / FrequencyDetectorControl.PeriodOfOneSampleMicros;
     FrequencyDetectorControl.FrequencyOfOneSample = tFrequencyOfOneSample;
 
-#ifdef INFO
+#if defined(INFO)
     Serial.print(F("SamplePeriod="));
     Serial.print(FrequencyDetectorControl.PeriodOfOneSampleMicros);
     Serial.println(F("us"));
@@ -161,11 +161,11 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
 
         tRetval = true;
     } else {
-#ifdef INFO
+#if defined(INFO)
         Serial.println(F("Error. Values not set! Must call setFrequencyDetectorReadingPrescaleValue() before!"));
 #endif
     }
-#ifdef INFO
+#if defined(INFO)
     Serial.print(F("MinMatchNODropoutCount="));
     Serial.print(FrequencyDetectorControl.MinMatchNODropoutCount);
     Serial.print(F(" MaxMatchDropoutCount="));
@@ -197,7 +197,7 @@ void setFrequencyDetectorReadingDefaults() {
 uint16_t sReadValueBuffer[SIGNAL_PLOTTER_BUFFER_SIZE];
 #endif
 /*
- * ADC read routine reads NUMBER_OF_SAMPLES (1024/512) samples and computes:
+ * ADC read routine reads NUMBER_OF_2_COMPRESSED_SAMPLES (1024/512) samples and computes:
  * - FrequencyDetectorControl.FrequencyRaw - Frequency of signal
  * or error value SIGNAL_STRENGTH_LOW if signal is too weak
  *
@@ -248,7 +248,7 @@ uint16_t readSignal() {
     /*
      * Read 512/1024 samples but only store periods
      */
-    for (unsigned int i = 0; i < NUMBER_OF_SAMPLES; i++) {
+    for (unsigned int i = 0; i < NUMBER_OF_2_COMPRESSED_SAMPLES; i++) {
         // loop takes around 39 cycles at least and we have 52 cycles @1MHz between each conversion
         /*
          * wait for free running conversion to finish.
@@ -316,7 +316,7 @@ uint16_t readSignal() {
 
     ADCSRA &= ~(1 << ADATE); // Disable ADC auto-triggering
 
-    FrequencyDetectorControl.AverageLevel = tSumOfSampleValues / NUMBER_OF_SAMPLES;
+    FrequencyDetectorControl.AverageLevel = tSumOfSampleValues / NUMBER_OF_2_COMPRESSED_SAMPLES;
     FrequencyDetectorControl.TriggerLastPosition = tPeriodCountPosition;
     FrequencyDetectorControl.PeriodCount = tPeriodCount;
 
@@ -356,7 +356,7 @@ uint16_t readSignal() {
             FrequencyDetectorControl.FrequencyRaw = ((long) tPeriodCount * FrequencyDetectorControl.FrequencyOfOneSample)
                     / (FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition);
 
-#ifdef DEBUG
+#if defined(DEBUG)
             Serial.print(F("Delta U="));
             Serial.print(tDelta);
             Serial.print(F(" TriggerValue="));
@@ -392,7 +392,7 @@ uint16_t doEqualDistributionPlausi() {
         uint8_t tPeriodMax = tAveragePeriod + (tAveragePeriod / 2);
         uint8_t tPeriodMin = tAveragePeriod - (tAveragePeriod / 4);
         uint8_t tErrorCount = 0;
-#ifdef TRACE
+#if defined(TRACE)
             Serial.print(tAveragePeriod);
             Serial.print("  ");
             printPeriodLengthArray(&Serial);
@@ -405,7 +405,7 @@ uint16_t doEqualDistributionPlausi() {
         if (tErrorCount > maximumAllowableCountOf(tPeriodCount)) {
             FrequencyDetectorControl.FrequencyRaw = SIGNAL_DISTRIBUTION_PLAUSI_FAILED;
         }
-#ifdef TRACE
+#if defined(TRACE)
             Serial.print(tErrorCount);
             Serial.print(F("  #="));
             Serial.print(tPeriodCount);

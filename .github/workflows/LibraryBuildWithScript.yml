@@ -1,7 +1,7 @@
 # LibraryBuildWithScript.yml
 # Github workflow script to test compile all examples of an Arduino library repository.
 #
-# Copyright (C) 2020  Armin Joachimsmeyer
+# Copyright (C) 2020-2022  Armin Joachimsmeyer
 # https://github.com/ArminJo/Github-Actions
 #
 # Before being able to push to my .github\workflows directories,
@@ -10,6 +10,8 @@
 # This is the name of the workflow, visible on GitHub UI.
 name: LibraryBuildWithScript
 on:
+  workflow_dispatch: # To run it manually
+    description: 'manual build check'
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     paths:
     - '**.ino'
@@ -22,7 +24,7 @@ jobs:
   build:
     name: ${{ matrix.arduino-boards-fqbn }} - test compiling examples
 
-    runs-on: ubuntu-18.04 # I picked Ubuntu to use shell scripts.
+    runs-on: ubuntu-latest # I picked Ubuntu to use shell scripts.
 
     env:
       # Comma separated list without double quotes around the list.
@@ -74,14 +76,14 @@ jobs:
         uses: actions/checkout@master
 
       - name: Checkout master version of ATtinySerialOut
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
         with:
           repository: ArminJo/ATtinySerialOut
           ref: master
           path: CustomLibrary # must contain string "Custom"
 
 #      - name: Checkout second custom library # This name must be different from th one above
-#        uses: actions/checkout@v2
+#        uses: actions/checkout@v3
 #        with:
 #          repository: ArminJo/Arduino-Utils
 #          ref: master

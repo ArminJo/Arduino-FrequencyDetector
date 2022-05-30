@@ -17,12 +17,12 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
 
-#ifndef SHOWINFO_H_
-#define SHOWINFO_H_
+#ifndef _SHOW_INFO_H
+#define _SHOW_INFO_H
 
 #include <Arduino.h>
 
@@ -87,6 +87,4 @@ void TimerRegisterDump(void);
 #  endif
 #endif // !defined(__AVR_ATmega32U4__)
 
-#endif /* SHOWINFO_H_ */
-
-#pragma once
+#endif // _SHOW_INFO_H

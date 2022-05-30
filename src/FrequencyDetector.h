@@ -19,12 +19,12 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
 
-#ifndef FREQUENCYDETECTOR_H_
-#define FREQUENCYDETECTOR_H_
+#ifndef _FREQUENCY_DETECTOR_H
+#define _FREQUENCY_DETECTOR_H
 
 #define VERSION_FREQUENCY_DETECTOR "2.0.0"
 #define VERSION_FREQUENCY_DETECTOR_MAJOR 2
@@ -46,7 +46,7 @@
 #if (RAMEND < 1000)
 #define SIGNAL_PLOTTER_BUFFER_SIZE 100 // ATtiny85 -> Store only start of signal in plotter buffer
 #elif (NUMBER_OF_SAMPLES < 1024)
-#define SIGNAL_PLOTTER_BUFFER_SIZE NUMBER_OF_SAMPLES // ATmega328 -> Can store complete signal in plotter buffer
+#define SIGNAL_PLOTTER_BUFFER_SIZE NUMBER_OF_2_COMPRESSED_SAMPLES // ATmega328 -> Can store complete signal in plotter buffer
 #else
 #define SIGNAL_PLOTTER_BUFFER_SIZE 512
 #endif
@@ -70,8 +70,8 @@
  * FREQUENCY_RANGE_DEFAULT -> 52 usec/sample -> 75 to 2403 Hz with 1024 samples and 150 to 2403 Hz with 512 samples.
  * FREQUENCY_RANGE_LOW -> 104 usec/sample -> 38 to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
  */
-#define NUMBER_OF_SAMPLES 512 // This does NOT occupy RAM, only (NUMBER_OF_SAMPLES / MIN_SAMPLES_PER_PERIOD) bytes are required.
-//#define NUMBER_OF_SAMPLES 1024
+#define NUMBER_OF_2_COMPRESSED_SAMPLES 512 // This does NOT occupy RAM, only (NUMBER_OF_2_COMPRESSED_SAMPLES / MIN_SAMPLES_PER_PERIOD) bytes are required.
+//#define NUMBER_OF_2_COMPRESSED_SAMPLES 1024
 
 /*
  * Default values for plausibility, you may change them if necessary
@@ -83,7 +83,7 @@
  * So we have 150 to 2403 Hz at 52 usec/sample and 512 buffer
  */
 #define MINIMUM_NUMBER_OF_TRIGGER_PER_BUFFER 8 // => Min frequency is 150 Hz at 52 usec/sample, 600 Hz at 13 usec/sample for 512 buffer size
-#define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_SAMPLES / MIN_SAMPLES_PER_PERIOD) // 512 / 8 = 64
+#define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_2_COMPRESSED_SAMPLES / MIN_SAMPLES_PER_PERIOD) // 512 / 8 = 64
 
 /*
  * Defaults for reading
@@ -156,12 +156,12 @@
 #define MICROS_PER_SAMPLE 26
 #  endif
 #endif
-#ifndef PRESCALE_VALUE_DEFAULT
+#if !defined(PRESCALE_VALUE_DEFAULT)
 # error "F_CPU is not one of 16000000, 8000000 or 1000000"
 #endif
 
 #define CLOCKS_FOR_READING_NO_LOOP 625 // extra clock cycles outside of the loop for one signal reading. Used to compensate millis();
-#define MICROS_PER_BUFFER_READING ((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP)
+#define MICROS_PER_BUFFER_READING ((MICROS_PER_SAMPLE * NUMBER_OF_2_COMPRESSED_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP)
 
 // number of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
 #define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT ((MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
@@ -245,7 +245,7 @@ struct FrequencyDetectorControlStruct {
      */
     uint16_t FrequencyRaw;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doEqualDistributionPlausi()
     uint8_t PeriodCount; // Count of periods in current reading - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1) (=63) !!!
-    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_SAMPLES(512) / 8 (= 64)
+    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_2_COMPRESSED_SAMPLES(512) / 8 (= 64)
     uint16_t TriggerFirstPosition; // position of first detection of a trigger in all samples
     uint16_t TriggerLastPosition;  // position of last detection of a trigger in all samples
 
@@ -334,4 +334,4 @@ void printInputSignalValuesForArduinoPlotter(Print *aSerial);
  * - New functions printLegendForArduinoPlotter() and printDataForArduinoPlotter().
  */
 
-#endif /* FREQUENCYDETECTOR_H_ */
+#endif // _FREQUENCY_DETECTOR_H

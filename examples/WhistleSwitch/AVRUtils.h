@@ -17,11 +17,11 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
-#ifndef AVRUTILS_H_
-#define AVRUTILS_H_
+#ifndef _AVR_UTILS_H
+#define _AVR_UTILS_H
 
 #if defined(__AVR__)
 #include <stdint.h>
@@ -38,10 +38,12 @@ extern volatile uint16_t sNumberOfSleeps;
 
 #define HEAP_STACK_UNTOUCHED_VALUE 0x5A
 void initStackFreeMeasurement();
-uint16_t getStackFreeMinimumBytes();
-uint16_t getStackUsedMaximumBytes(uint16_t *aStackStillFreeBytes);
-void printStackFreeMinimumBytes(Print *aSerial);
-void printStackUsedAndFreeBytes(Print *aSerial);
+uint16_t getStackUnusedBytes();
+void printStackUnusedBytes(Print *aSerial);
+uint16_t getStackUnusedAndUsedBytes(uint16_t *aStackUsedBytesPointer);
+void printStackUnusedAndUsedBytes(Print *aSerial);
+void printStackUnusedAndUsedBytesIfChanged(Print *aSerial);
+
 uint8_t * getHeapStart();
 uint16_t getFreeHeap(void);
 void printFreeHeap(Print *aSerial);
@@ -50,6 +52,4 @@ void printFreeRam(Print *aSerial);
 bool isAddressInRAM(void *aAddressToCheck);
 bool isAddressBelowHeap(void *aAddressToCheck);
 #endif //  defined(__AVR__)
-#endif // AVRUTILS_H_
-
-#pragma once
+#endif // _AVR_UTILS_H

@@ -7,7 +7,7 @@ Available as Arduino library "FrequencyDetector"
 [![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
 [![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithAction/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
 [![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithScript/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
-[![Hit Counter](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https://github.com/ArminJo/Arduino-FrequencyDetector)](https://github.com/brentvollebregt/hit-counter)
+![Hit Counter](https://visitor-badge.laobi.icu/badge?page_id=ArminJo_Arduino-FrequencyDetector)
 
 Detects frequency **from 38 Hz to 9612 Hz** and works even on an ATTiny85 with 1 MHz up to 4806 Hz. The input signal can be plotted to the Arduino Serial Plotter resulting in a **simple Oscilloscope** to test the internal signal.
 
@@ -25,9 +25,9 @@ The value of millis() is adjusted after reading.<br/>
 The alternative to disabling the interrupt is getting partially invalid results!
 
 There are 3 detection ranges available:
-- `FREQUENCY_RANGE_HIGH` -> 13 µs/sample -> 300 to **9612** Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
-- `FREQUENCY_RANGE_DEFAULT` -> 52 µs/sample -> **75 to 2403 Hz with 1024 samples** and 150 to 2403 Hz with 512 samples.
-- `FREQUENCY_RANGE_LOW` -> 104 µs/sample -> **38** to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
+- `FREQUENCY_RANGE_HIGH` -> 13 &micro;s/sample -> 300 to **9612** Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
+- `FREQUENCY_RANGE_DEFAULT` -> 52 &micro;s/sample -> **75 to 2403 Hz with 1024 samples** and 150 to 2403 Hz with 512 samples.
+- `FREQUENCY_RANGE_LOW` -> 104 &micro;s/sample -> **38** to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
 
 ### `readSignal()` is the ADC read routine, which reads 1024 samples (512 for ATtinies) and computes the following values:
   1. Frequency of signal `uint16_t FrequencyRaw`
@@ -241,7 +241,7 @@ External circuit for 20x amplification configuration on a Digispark board.
 - New functions `printLegendForArduinoPlotter()` and `printDataForArduinoPlotter()`.
 
 # CI
-Since Travis CI is unreliable and slow, the library examples are now tested with GitHub Actions for the following boards:
+The library examples are tested with GitHub Actions for the following boards:
 
 - arduino:avr:uno
 - digistump:avr:digispark-tiny1
