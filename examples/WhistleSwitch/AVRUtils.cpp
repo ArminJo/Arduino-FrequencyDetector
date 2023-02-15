@@ -4,7 +4,7 @@
  *  Stack, Ram and Heap utilities.
  *  Sleep utilities.
  *
- *  Copyright (C) 2016-2020  Armin Joachimsmeyer
+ *  Copyright (C) 2016-2023  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-Utils https://github.com/ArminJo/Arduino-Utils.
@@ -16,8 +16,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -255,19 +255,20 @@ void initPeriodicSleepWithWatchdog(uint8_t tSleepMode, uint8_t aWatchdogPrescale
 }
 
 /*
- * aWatchdogPrescaler can be 0 (15 ms) to 3(120 ms), 4 (250 ms) up to 9 (8000 ms)
+ * @param aWatchdogPrescaler (see wdt.h) can be one of WDTO_15MS, 30, 60, 120, 250, WDTO_500MS, WDTO_1S to WDTO_8S
+ *                                                    0 (15 ms) to 3(120 ms), 4 (250 ms) up to 9 (8000 ms)
  */
 uint16_t computeSleepMillis(uint8_t aWatchdogPrescaler) {
     uint16_t tResultMillis = 8000;
     for (uint8_t i = 0; i < (9 - aWatchdogPrescaler); ++i) {
         tResultMillis = tResultMillis / 2;
     }
-    return tResultMillis;
+    return tResultMillis + 65; // + 65 for the (default) startup time
 }
 /*
- * aWatchdogPrescaler (see wdt.h) can be one of
- * WDTO_15MS, 30, 60, 120, 250, WDTO_500MS
- * WDTO_1S to WDTO_8S
+ * @param aWatchdogPrescaler (see wdt.h) can be one of WDTO_15MS, 30, 60, 120, 250, WDTO_500MS, WDTO_1S to WDTO_8S
+ * @param aAdjustMillis if true, adjust the Arduino internal millis counter the get quite correct millis()
+ * results even after sleep, since the periodic 1 ms timer interrupt is disabled while sleeping.
  */
 void sleepWithWatchdog(uint8_t aWatchdogPrescaler, bool aAdjustMillis) {
     MCUSR = 0; // Clear MCUSR to enable a correct interpretation of MCUSR after reset
@@ -277,13 +278,19 @@ void sleepWithWatchdog(uint8_t aWatchdogPrescaler, bool aAdjustMillis) {
     wdt_enable(aWatchdogPrescaler);
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
+#  if !defined(timer0_millis)
+#define timer0_millis millis_timer_millis // The ATTinyCore + Digispark libraries use millis_timer_millis in wiring.c
+#  endif
 #define WDTCSR  WDTCR
 #endif
     WDTCSR |= _BV(WDIE) | _BV(WDIF); // Watchdog interrupt enable + reset interrupt flag -> requires ISR(WDT_vect)
     sei();         // Enable interrupts
     sleep_cpu();   // The watchdog interrupt will wake us up from sleep
+
+    // We wake up here :-)
     wdt_disable(); // Because next interrupt will otherwise lead to a reset, since wdt_enable() sets WDE / Watchdog System Reset Enable
     ADCSRA |= ADEN;
+
     /*
      * Since timer clock may be disabled adjust millis only if not slept in IDLE mode (SM2...0 bits are 000)
      */

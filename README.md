@@ -48,6 +48,9 @@ and also low pass filters the result for smooth transitions between the 3 match 
 ### By enabling `PRINT_INPUT_SIGNAL_TO_PLOTTER` in *FrequencyDetector.h*, it can be used as a simple oscilloscope using the Arduino Serial Plotter.
 ![Arduino Plotter output of whistle switch in action](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/SimpleFrequencyDetectorPlotterOutput.png)
 
+### If `PRINT_RESULTS_TO_SERIAL_PLOTTER` in *FrequencyDetector.h* is enabled, result data can be observed at the Arduino Serial Plotter.
+![Arduino Plotter output of whistle switch in action](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/SimpleFrequencyDetectorPlotterOutput.png)
+
 # Dependencies
 The [ATtinySerialOut library](https://github.com/ArminJo/ATtinySerialOut) is required for [print functions](src/FrequencyDetector.h#L312) on ATtinies.
 

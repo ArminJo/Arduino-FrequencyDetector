@@ -2,9 +2,9 @@
  * WhistleSwitch.cpp
  *
  * Analyzes a microphone signal and toggles an output pin, if the main frequency is for a specified duration in a specified range.
- * For Tiny85 with 1 MHz
+ * For ATtiny85 with 1 MHz - CLOCK_SOURCE=6 must be defined for ATTinyCore
  *
- *  Copyright (C) 2014-2020  Armin Joachimsmeyer
+ *  Copyright (C) 2014-2023  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-FrequencyDetector https://github.com/ArminJo/Arduino-FrequencyDetector.
@@ -16,8 +16,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -30,17 +30,18 @@
  *  This can be useful if a machine generated signal (e.g. from a vacuum cleaner) matches the range.
  *
  *  BUTTON OPERATION / RESET
- *  On button release, the relay state is toggled. If the press was in RELAY_DEAD_MILLIS (1) seconds after the last press, the relay is NOT toggled.
+ *  On button release, the relay state is toggled. If the press was in RELAY_DEAD_MILLIS (800) seconds after the last press, the relay is NOT toggled.
  *  This relay dead time was introduced, to avoid relay switching while trying to perform a reset by double press, see below.
  *  A reset can be performed by power off/on or by pressing the button two times with each time shorter than RESET_ENTER_BUTTON_PUSH_MILLIS (0.12 seconds)
  *  within a RESET_WAIT_TIMEOUT_MILLIS (0.3 seconds) interval.
  *  A button press longer than BUTTON_PUSH_ENTER_PROGRAM_SIMPLE_MILLIS (1.5 seconds) will enter the programming mode, which is indicated by a LED blink.
  *
  *  INFO
- *  After power up or reset, the feedback LED echoes the range number. Range number 10 indicates an individual range, programmed by advanced programming.
- *  The timeout state is signaled by short LED pulses after the range number feedback (no short pulse -> no timeout enabled, 1 -> 2h, 2 -> 4h, 3 -> 8h).
- *  If the button is pressed during the info / startup, the ADC ((AverageLevel + 50) / 100) is signaled after the timeout signaling.
- *      Range is from 0 to 10. Values of 4 to 6 are optimal.
+ *  After power up or reset, the feedback LED echoes the frequency range number. Range number 10 indicates an individual range, programmed by advanced programming.
+ *  The timeout range index is signaled by short LED pulses after the range number feedback (no short pulse -> no timeout enabled, 1 -> 2h, 2 -> 4h, 3 -> 8h).
+ *  If the button is pressed during boot / startup, the ADC ((AverageLevel + 50) / 100) is signaled
+ *  instead of the frequency and timeout frequency range 1 second after button release.
+ *      Range is from 0 to 10. Values of 4 or 5 are optimal.
  *
  *  TIMEOUT
  *  After a timeout of TIMEOUT_RELAY_ON_SIGNAL_MINUTES_(1 to 3) (2, 4 or 8 hours) the relay goes OFF for 1 second.
@@ -117,8 +118,6 @@
 
 #include <Arduino.h>
 
-#include "FrequencyDetector.h"
-
 #define VERSION_EXAMPLE "8.1"
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__)
@@ -135,7 +134,7 @@
 //#define MEASURE_TIMING // do not activate for ATTinies since there is no timing pin left
 //#define TRACE
 //#define DEBUG
-#if ! defined(INFO)
+#if !defined(INFO)
 #define INFO // release version
 #endif
 #include "DebugLevel.h" // to propagate above debug levels
@@ -160,17 +159,21 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 // ATMEL ATTINY85 - LEGACY LAYOUT - for my old PCBs
 //
 //                                                          +-\/-+
-//  RESET                  PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  Vcc
+//  RESET                  PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  VCC
 //  BUTTON   USB+ - PCINT3/XTAL1/CLKI/!OC1B/ADC3 (D3) PB3  2|    |7  PB2 (D2) SCK/USCK/SCL/ADC1/T0/INT0/PCINT2 - SIGNAL_IN
 //  RELAY_OUT USB- - PCINT4/XTAL2/CLKO/OC1B/ADC2 (D4) PB4  3|    |6  PB1 (D1) MISO/DO/AIN1/OC0B/OC1A/PCINT1 - DEBUG TX
 //                                                    GND  4|    |5  PB0 (D0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0 - LED_BUILTIN / LED_FEEDBACK
 //                                                          +----+
 //
 // Direct compatible with Digispark boards.
+// On Digispark boards, PB5/USB- and PB3/USB+ are clamped by a 68 (USB A version) or 22 ohm (micro USB version) series resistor connected to a 3.7 V Zener to ground.
+// PB3/USB+ has a 1.0k (USB A version) or 1.5k (micro USB version) pullup to VCCC.
+//
+//
 // ATMEL ATTINY85 -  1x and 20x LAYOUT - must remove PB4 connection and capacitor between PB3 and PB4 before programming board with micronucleus.
 //
 //                                                          +-\/-+
-//  RESET                  PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  Vcc
+//  RESET                  PCINT5/!RESET/ADC0/dW (D5) PB5  1|    |8  VCC
 //  BUTTON   USB+ - PCINT3/XTAL1/CLKI/!OC1B/ADC3 (D3) PB3  2|    |7  PB2 (D2) SCK/USCK/SCL/ADC1/T0/INT0/PCINT2 - DEBUG TX
 //  SIGNAL_IN USB- - PCINT4/XTAL2/CLKO/OC1B/ADC2 (D4) PB4  3|    |6  PB1 (D1) MISO/DO/AIN1/OC0B/OC1A/PCINT1 - LED_BUILTIN / LED_FEEDBACK
 //                                                    GND  4|    |5  PB0 (D0) MOSI/DI/SDA/AIN0/OC0A/!OC1A/AREF/PCINT0 - RELAY_OUT
@@ -201,19 +204,19 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
  *      |                             o-|_____|--o
  *      _                             |   1M     |
  *     | |                            |          |
- *     | | 4k7       ____             |  2|\     |
- *     |_| ---------|____|------------o---| \____o______o SIGNAL_IN (ADC1)
- *      | /  ____    10k      ____    |   | /6
- *      o---|____|-----o-----|____|-------|/
+ *     | | 4k7                        |  2|\     |
+ *     |_|                            o---| \____o----> TO ADC
+ *      |    ____    10k      ____    |   | /6
+ *      o---|____|-----o-----|____|------+|/
  *      |     4k7      |      4k7     |  3
  *     ---            |O MICROPHONE   _    LM308
  *     --- 1 uF        |             | |
- *      |              |             | | 1k
+ *      |              |             | | 4k7 x200 Amplification
  *     ___            ___            |_|
  *                                    |
  *                                    |
  *                                   ---
- *                                   ---  100 nF
+ *                                   ---  100 nF 300 kHz high pass
  *                                    |
  *                                   ___
  *
@@ -221,56 +224,59 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 
 /*
  * External circuit for 1x amplification configuration on a Digispark board.
+ * Input DC level is 550 mV, which is half of the internal 1.1 V reference
  *
- *          + CPU 5V                                    - * Schottky-diode
- *          o------------------------------------ o-----|<|--o-- USB 5V
- *          |                                     |    -     |
- *          _                                     |          |
- *         | |                                    o /        |
- *    470k | |                                     /=| Push button
- *         |_|                                    /          |
- *     1n   |   ____       ____                   o----------o
- *  >- | |--o--|____|--o--|____|--O PB4 550 mV    |
- *   500Hz  |   3k3    |   10k to enable USB      _
- *   High   _          |       programming       | |
- *   Pass  | |        ---                        | | * 1k5 pullup
- *    100k | |        --- 22n 2kHz Low           |_|
- *         |_|         |          Pass            |
- *          |          |                   ____   |
- *          o----------o           PB3 O--|____|--o
- *          |                            * 68/22  |
- *          |                                    __
- *          |                                    /\` * 3V6 Z-diode
- *          |                                    --
- *          |                                     |  * = assembled USB circuit on Digispark
- *          |                                     |
- *         ___                                   ___
+ *          + CPU 5V                          - * Schottky-diode
+ *          o-------------------------- o-----|<|--o-- USB 5V
+ *          |                           |    -     |
+ *          _                           o /        | <-- Modification to save power and to be compatible with 20x amplification
+ *         | |              Push button  /=|       |
+ *    470k | |                          /          |
+ *         |_|                          o          |
+ *     1n   |    ____ 550 mV DC level   |          |
+ *  >---||--o---|____|--O PB4           _          _
+ *   500Hz  |    10k                   | |        | |
+ *   High   _                      47k | |        | | * 1k5 pullup
+ *   Pass  | |                         |_|        |_|
+ *    100k | |                          |          |
+ *         |_|                          |          |
+ *          |                           |    ____  |
+ *          |            PB3 O----------o---|____|-o
+ *          |                           |  * 68/22 |
+ *          |                           _         __
+ *          |                          | |        /\` * 3V6 Z-diode
+ *          |                     100k | |        --
+ *          |                          |_|         |  * = assembled USB circuit on Digispark
+ *          |                           |          |
+ *         ___                         ___        ___
+ *
+ *
  *
  * External circuit for 20x amplification configuration on a Digispark board.
  *
- *          + CPU 5V                                    - * Schottky-diode
- *          o------------------------------------ o-----|<|--o-- USB 5V
- *          |                                     |    -     |
- *          _                                     |          |
- *         | |                                    o /        |
- *    680k | |                                     /=| Push button
- *         |_|                                    /          |
- *    100n  |   ____       ____                   o----------o
- *  >- | |--o--|____|--o--|____|--O PB4 44 mV     |
- *   500Hz  |   3k3    |   10k to enable USB      _
- *   High   _          |       programming       | |
- *   Pass  | |        ---                        | | * 1k5 pullup
- *     3k3 | |        --- 22n 2kHz Low           |_|
- *         |_|         |          Pass            |
- *          |          |                   ____   |
- *          o----------o--O PB3 22 mV-----|____|--o
- *          |                            * 68/22  |
- *          _                                    __
- *         | |                                   /\` * 3V6 Z-diode
- *     3k3 | |                                   --
- *         |_|                                    |  * = assembled USB circuit on Digispark
- *          |                                     |
- *         ___                                   ___
+ *                                  + CPU 5V         - * Schottky-diode
+ *                                      o----- o-----|<|--o-- USB 5V
+ *                                      |      |    -     | <-- Modification for 20x amplification
+ *                                      _      o /        |
+ *                                     | |      /=|  Push | button
+ *                                  1M | |     /          |
+ *                                     |_|     o          |
+ *              ____             ____   |      |          |
+ * >--||-o-||--|____|--O PB4 O--|____|--o      _          _
+ *   10n | 10n  10k        44 mV 100k   |     | |        | |
+ *       |                DC level      _  1k | |        | | * 1k5 pullup
+ *       | High pass                   | |    |_|        |_|
+ *       | 800 Hz                  5k6 | |     |          |
+ *       |                             |_|     |          |
+ *       |                              |      |    ____  |
+ *       _               PB3 O----------o------o---|____|-o
+ *      | |                     22 mV   |         * 68/22 |
+ *  22k | |                   DC level  _                __
+ *      |_|                            | |               /\` * 3V6 Z-diode
+ *       |                         4k7 | |               --
+ *       |                             |_|                |  * = assembled USB circuit on Digispark
+ *       |                              |                 |
+ *      ___                            ___               ___
  *
  *   PB2 O-- Serial out 115200 baud
  *   PB1 O-- Feedback LED
@@ -282,12 +288,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 /*
  * Attiny85
  */
-#if (defined(INFO) || defined(DEBUG) || defined(TRACE))
-#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
-#endif
-
-// defines for EasyButton below.
-#define BUTTON_PIN 3
+#define BUTTON_PIN 3 // define for EasyButton below.
 
 #ifdef LEGACY_LAYOUT
 // for existing Whistle Switches
@@ -296,35 +297,39 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define RELAY_OUT 4
 #define LED_FEEDBACK 0
 #define DEBUG_PIN 1
-#  if (defined(INFO) || defined(DEBUG) || defined(TRACE)) && (TX_PIN != DEBUG_PIN)
-#error "Change TX_PIN definition in ATtinySerialOut.h to match DEBUG_PIN."
-#  endif
 
 #else // LEGACY_LAYOUT
-// Standard layout Digispark compatible - LED at D1 - But button and signal in clamped by 3V3 zener diode!!!
-
-// Pin 3 is clamped by 3V3 zener diode. If we want to have button ACTIVE_LOW we must add a 10k pullup resistor, which requires 0.25 mA and gives a low noise margin.
+/*
+ * Compatible to standard layout of Digispark boards - LED at PB1 - Button and signal are clamped by 3V3 zener diode!!!
+ *
+ * 20x amplification mode uses DC Level at pin PB3 instead of ground. And the DC level at PB4 should be 27.5 mV (550 mV / 20) higher,
+ * to have a full symmetrical range available for conversion.
+ * To generate this DC levels and still use PB3 as button input, the button must be active high
+ * and the 1k5 pullup must be connected to the other side of the shottky diode (to be active for programming by USB).
+ *
+ * for 1x amplification mode, button could be active low (in parallel to the zener),
+ * but at 5 volt the 1k5 pullup consumes 1 mA for nothing if not reconnected the other side of the shottky diode.
+ * So I decided to enforce the pullup reconnection and have the button active high also for 1x amplification.
+ */
 #define BUTTON_IS_ACTIVE_HIGH
 
 #define RELAY_OUT 0
 #define LED_FEEDBACK 1  // Digispark LED pin
 #define DEBUG_PIN 2
-#  if (defined(INFO) || defined(DEBUG) || defined(TRACE)) && (TX_PIN != DEBUG_PIN)
-#error Change TX_PIN definition in ATtinySerialOut.h to match DEBUG_PIN.
-#  endif
-
 
 #define ADC_REFERENCE INTERNAL  // 1V1
-#if defined(USE_ATTINY85_20X_AMPLIFICATION)
-// Here button pin is also used as differential input, therefore need inverse logic -> active is HIGH
-// Signal in clamped by 3V3 zener diode!!!
+#  if defined(USE_ATTINY85_20X_AMPLIFICATION)
 #define ADC_CHANNEL 7           // Differential input (ADC2/PB4 - ADC3/PB3(Button)) * 20
-#else
-//x1 amplification here
-#define ADC_CHANNEL 2           // Channel ADC2 / PB4 - Signal in clamped by 3V3 zener diode!!!
-#endif // USE_ATTINY85_20X_AMPLIFICATION
-
+#  else
+// x1 amplification here
+#define ADC_CHANNEL 2           // Channel ADC2 / PB4 - Signal is clamped by 3V3 zener diode but should anyway stay below 1.1V :-)
+#  endif // USE_ATTINY85_20X_AMPLIFICATION
 #endif // LEGACY_LAYOUT
+
+#if (defined(INFO) || defined(DEBUG) || defined(TRACE) || defined(PRINT_INPUT_SIGNAL_TO_PLOTTER))
+#define TX_PIN      DEBUG_PIN // for ATtinySerialOut
+#include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
+#endif
 
 #if defined(MEASURE_TIMING)
 #define READ_SIGNAL_TIMING_OUTPUT_PIN LED_FEEDBACK
@@ -353,10 +358,12 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #endif // (__AVR_ATmega328P__)
 
 #if defined(USE_ATTINY85_20X_AMPLIFICATION)
-#define AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT 0x10 // to suppress high noise for printing
+#define AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT 0x10 // to suppress noise for printing
 #else
-#define AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT 0x04 // to suppress lower noise for printing
+#define AVERAGE_LEVEL_DELTA_REQUIRED_FOR_OUTPUT 0x04 // to suppress noise for printing
 #endif
+
+#include "FrequencyDetector.hpp" // include sources
 
 #define USE_BUTTON_1  // Enable code for button at INT1 (pin3 on 328P, PA3 on ATtiny167, PB3/PCINT3 for ATtinyX5)
 #include "EasyButtonAtInt01.hpp"
@@ -428,7 +435,6 @@ EEMEM EepromParameterStruct sPersistentParametersEEPROM;
  * States for main loop
  */
 enum MainStateEnum {
-    IN_SETUP,
     DETECT_FREQUENCY,
     PROGRAM_SIMPLE,
     PROGRAM_ADVANCED_FREQUENCY_RANGE,
@@ -446,7 +452,6 @@ struct WhistleSwitchControlStruct {
 
     uint32_t MillisAtLastRelayChange;
     //
-    bool sSignalAverageLevel; // Signal (Average level / 100) at startup
     bool RelayJustToggled; // do only one toggle per consecutive matches
     bool sMatchTooLongDetected;
     //
@@ -469,7 +474,7 @@ struct LedControlStruct {
 } LedControl;
 
 #if defined(INFO)
-uint16_t sLastAverageLevel; // for printSignalInfos
+uint16_t sLastAverageLevel = 0; // = 0 forces printSignalInfos() at first loop.
 #endif
 
 #define STR_HELPER(x) #x
@@ -547,7 +552,7 @@ void eepromWriteParameter() {
     eeprom_write_block((void*) &sPersistentParameters, &sPersistentParametersEEPROM, sizeof(EepromParameterStruct));
 
 #if defined(INFO)
-    Serial.print(F("FrequencyMin="));
+    Serial.print(F("eepromWrite: FrequencyMin="));
     Serial.print(sPersistentParameters.FrequencyMin);
     Serial.print(F(" FrequencyMax="));
     Serial.print(sPersistentParameters.FrequencyMax);
@@ -623,11 +628,17 @@ void signalRangeIndexByLed() {
 }
 
 /*
+ * Display AverageLevel / 100
  * Range is from 0 to 10. Values of 4 to 6 are optimal.
+ * 100 - 199 -> 1x
+ * 300 - 399 -> 3x
+ * 400 - 499 -> 4x
+ * 500 - 599 -> 5x
+ * ...
+ * 900 - 999 -> 9x
  */
 void signalAverageLevelByLed() {
-    // display AverageLevel / 100
-    for (uint8_t i = 0; i <= (FrequencyDetectorControl.AverageLevel + 50) / 100; ++i) {
+    for (uint8_t i = 0; i < FrequencyDetectorControl.AverageLevel; i+=100) {
         digitalWriteFast(LED_FEEDBACK, HIGH);
         delay(TIMING_FREQUENCY_LOWER_MILLIS * 4);
         digitalWriteFast(LED_FEEDBACK, LOW);
@@ -637,7 +648,7 @@ void signalAverageLevelByLed() {
 
 void signalTimeoutByLed() {
 #if defined(INFO)
-    Serial.print(F("RelayOnTimeoutIndex="));
+    Serial.print(F("Relay ON timeout index="));
     Serial.println(WhistleSwitchControl.RelayOnTimeoutIndex);
 #endif
 
@@ -789,7 +800,7 @@ void printSignalInfos() {
     Serial.print(FrequencyDetectorControl.TriggerLevel);
     Serial.print(F(" Avg="));
     Serial.print(FrequencyDetectorControl.AverageLevel);
-    Serial.print(F(" D="));
+    Serial.print(F(" Delta="));
     Serial.print(FrequencyDetectorControl.SignalDelta);
     Serial.print(F(" F="));
     Serial.println(FrequencyDetectorControl.FrequencyRaw);
@@ -882,6 +893,7 @@ void setup() {
      * and uses fastest prescaler value (approximately 15 ms)
      */
     wdt_disable();
+
 #if defined(__AVR_ATtiny85__)
 #  if defined(INFO) || defined(DEBUG) || defined(TRACE)
     initTXPin();
@@ -906,8 +918,6 @@ void setup() {
 
     pinModeFast(LED_FEEDBACK, OUTPUT);
     pinModeFast(RELAY_OUT, OUTPUT);
-
-    WhistleSwitchControl.MainState = IN_SETUP;
 
 #if defined(INFO)
     // Just to know which program is running on my Arduino
@@ -955,15 +965,34 @@ void setup() {
     Serial.print(FrequencyDetectorControl.FrequencyMatchHigh);
     Serial.println(F("Hz"));
 #endif
-    signalRangeIndexByLed();
-    delay(1000);
+
+    readSignal(); // initialize values
 
     /*
-     * signal timeout state with short pulse
+     * If button is pressed while booting,
+     * the average DC level is signaled by LED,
+     * otherwise frequency range index and signal timeout index
      */
-    signalTimeoutByLed();
+    if (ButtonAtPin3.readButtonState()) {
+        while(ButtonAtPin3.readButtonState()); // wait for button to be released
+        delay(500); // wait a half second for DC Level at button pin to stabilize
+        readSignal(); // Read values for average
+        printSignalInfos();
+        signalAverageLevelByLed();
+
+    } else {
+        /*
+         * Signal frequency range index
+         */
+        signalRangeIndexByLed();
+        delay(1000);
+
+        /*
+         * signal timeout index with short pulse
+         */
+        signalTimeoutByLed();
+    }
     delay(1000);
-    readSignal(); // initialize values
 
 //initPinChangeInterrupt
 #if defined(__AVR_ATtiny85__)
@@ -982,11 +1011,6 @@ void setup() {
     backToStateDetect();
     //    ButtonAtPin3.ButtonStateHasJustChanged = false;
     //    WhistleSwitchControl.TimeoutSignaledOnce = false;
-
-    if (WhistleSwitchControl.sSignalAverageLevel) {
-        readSignal();
-        signalAverageLevelByLed();
-    }
 }
 
 /************************************************************************
@@ -1303,10 +1327,6 @@ void detectSimpleProgrammingStateTimeout() {
  */
 void handleButtonPress(bool __attribute__((unused)) aButtonToggleState) {
     switch (WhistleSwitchControl.MainState) {
-    case IN_SETUP:
-        WhistleSwitchControl.sSignalAverageLevel = true;
-        break;
-
     case DETECT_FREQUENCY:
         if (ButtonAtPin3.checkForDoublePress(RESET_WAIT_TIMEOUT_MILLIS)) {
             doReset();

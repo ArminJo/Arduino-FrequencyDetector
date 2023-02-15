@@ -27,8 +27,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the See the See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -50,7 +50,7 @@
  * - BUTTON_LED_FEEDBACK            This activates LED_BUILTIN as long as button is pressed.
  * - BUTTON_LED_FEEDBACK_PIN        The pin to use for button LED feedback.
  *
- * The macros/symbols INT0_PIN and INT1_PIN are set after the include.
+ * The macros INT0_PIN and INT1_PIN are set after the include.
  */
 
 #ifndef _EASY_BUTTON_AT_INT01_HPP
@@ -480,6 +480,7 @@ bool EasyButton::checkForDoublePress(uint16_t aDoublePressDelayMillis) {
     /*
      * Check if ButtonReleaseMillis is not in initialized state
      * otherwise a single press before aDoublePressDelayMillis after boot is mistakenly detected as double press
+     * Check costs 26 bytes program memory :-(
      */
     if (ButtonReleaseMillis != 0) {
         // because ButtonReleaseMillis is initialized with 0 milliseconds, which is interpreted as the first press happened at the beginning of boot.

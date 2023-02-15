@@ -15,8 +15,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -35,10 +35,9 @@
 #include "ATtinySerialOut.h" // For redefining Print. Available as Arduino library
 #endif
 
-// If enabled, store first input samples for printing to Arduino Plotter
-//#define PRINT_INPUT_SIGNAL_TO_PLOTTER
-// Enable this to print generated output to Arduino Serial Plotter (Ctrl-Shift-L)
-//#define PRINT_RESULTS_TO_SERIAL_PLOTTER
+
+//#define PRINT_INPUT_SIGNAL_TO_PLOTTER     // If enabled, store first input samples for printing to Arduino Plotter
+//#define PRINT_RESULTS_TO_SERIAL_PLOTTER   // Enable this to print generated output to Arduino Serial Plotter (Ctrl-Shift-L)
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER) && defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
 #error Please define only one of PRINT_INPUT_SIGNAL_TO_PLOTTER and PRINT_RESULTS_TO_SERIAL_PLOTTER
 #endif
@@ -222,7 +221,7 @@ struct FrequencyDetectorControlStruct {
     /*
      * Value set by setFrequencyDetectorReadingValues()
      * Minimum signal strength value to produce valid output and do new trigger level computation. Otherwise return SIGNAL_STRENGTH_LOW
-     * Threshold for minimum SignalDelta of raw ADC value for valid signal strength. 0x40=312 mV at 5 millivolt and 68.75 mVolt at 1.1 volt, 0x20=156/34,37 millivolt
+     * Threshold for minimum SignalDelta of raw ADC value for valid signal strength. 0x40=312 mV at 5 V and 68.75 mV at 1.1 V, 0x20=156/34,37 mV
      */
     uint16_t RawVoltageMinDelta;
 

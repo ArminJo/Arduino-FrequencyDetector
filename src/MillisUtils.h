@@ -13,8 +13,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -53,10 +53,13 @@ void delayAndCallFunctionEveryMillis(unsigned int aDelayMillis, void (*aDelayCal
 void disableMillisInterrupt();
 void addToMillis(uint16_t aMillisToAdd);
 void enableMillisInterrupt(uint16_t aMillisToAddForCompensation = 0);
+
+void speedTestWith1kCalls(Print *aSerial, void (*aFunctionUnderTest)(void));
 #endif //  defined(__AVR__)
 
 void delayMilliseconds(unsigned int aMillis);
 bool areMillisGone(unsigned int aMillis);
 bool areMillisGone(unsigned int aMillis, unsigned long * aLastMillisPtr);
+
 
 #endif // _MILLIS_UTILS_H

@@ -5,7 +5,7 @@
  * If frequency is in the range of 1400 to 1700 Hz, the Arduino built in LED will light up.
  *
  *
- *  Copyright (C) 2014  Armin Joachimsmeyer
+ *  Copyright (C) 2014-2023  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-FrequencyDetector https://github.com/ArminJo/Arduino-FrequencyDetector.
@@ -17,8 +17,8 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
@@ -61,7 +61,7 @@
 #include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
 #endif
 
-#include "FrequencyDetector.h"
+#include "FrequencyDetector.hpp"
 
 #if defined(INFO)
 #include "AVRUtils.h" // for getFreeRam()
