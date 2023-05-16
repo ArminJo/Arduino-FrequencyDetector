@@ -130,7 +130,7 @@
  * If not defined, the 1x amplification is used with a more digispark compatible pin layout
  */
 //#define USE_ATTINY85_20X_AMPLIFICATION
-//#define PRINT_RESULTS_TO_SERIAL_PLOTTER
+//#define PRINT_RESULTS_TO_SERIAL_PLOTTER   // Enable this to print generated output to Arduino Serial Plotter (Ctrl-Shift-L)
 //#define MEASURE_TIMING // do not activate for ATTinies since there is no timing pin left
 //#define TRACE
 //#define DEBUG

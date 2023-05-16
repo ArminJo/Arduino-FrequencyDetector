@@ -61,7 +61,13 @@
 #include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
 #endif
 
+//#define PRINT_INPUT_SIGNAL_TO_PLOTTER     // If enabled, store SIGNAL_PLOTTER_BUFFER_SIZE input samples for printing to Arduino Plotter
 #include "FrequencyDetector.hpp"
+
+//#define PRINT_RESULTS_TO_SERIAL_PLOTTER   // If enabled, this example program prints generated output values to Arduino Serial Plotter (Ctrl-Shift-L)
+#if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER) && defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
+#error Please define only one of PRINT_INPUT_SIGNAL_TO_PLOTTER or PRINT_RESULTS_TO_SERIAL_PLOTTER
+#endif
 
 #if defined(INFO)
 #include "AVRUtils.h" // for getFreeRam()

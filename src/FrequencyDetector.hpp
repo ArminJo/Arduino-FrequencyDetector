@@ -568,6 +568,14 @@ void printPeriodLengthArray(Print *aSerial) {
 }
 
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
+/*
+ * Prints input signal, upper and lower trigger levels and the value of FrequencyRaw (which also codes the errors)
+ * as well as caption (for 1.x IDE plotter)
+ * Requires sReadValueBuffer
+ */
+void printSignalValuesForArduinoPlotter(Print *aSerial) {
+     printInputSignalValuesForArduinoPlotter(aSerial);
+}
 void printInputSignalValuesForArduinoPlotter(Print *aSerial) {
     aSerial->print(F("InputValue TriggerLevel="));
     aSerial->print(FrequencyDetectorControl.TriggerLevel);
@@ -598,13 +606,19 @@ void printTriggerValues(Print *aSerial) {
     aSerial->println(FrequencyDetectorControl.TriggerLevel);
 }
 
-void printLegendForArduinoPlotter(Print *aSerial) {
+void printLegendForArduinoPlotter(Print *aSerial){
+    printResultLegendForArduinoPlotter(aSerial);
+}
+void printResultLegendForArduinoPlotter(Print *aSerial) {
     aSerial->println(
             F(
                     "FrequencyMatchDirect*95 MatchDropoutCount*13  MatchLowPassFiltered*2 FrequencyMatchFiltered*100 FrequencyRaw FrequencyFiltered"));
 }
 
 void printDataForArduinoPlotter(Print *aSerial) {
+    printResultDataForArduinoPlotter(aSerial);
+}
+void printResultDataForArduinoPlotter(Print *aSerial) {
     static uint8_t sConsecutiveErrorCount = 0; // Print only 10 errors, then stop
 
     if (sConsecutiveErrorCount >= 10) {
@@ -614,7 +628,7 @@ void printDataForArduinoPlotter(Print *aSerial) {
         } else {
             // no error any more, start again with print
             sConsecutiveErrorCount = 0;
-            printLegendForArduinoPlotter(aSerial);
+            printResultLegendForArduinoPlotter(aSerial);
         }
     }
     /*
