@@ -147,7 +147,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define PREDEFINED_RANGES_START_ARRAY_SIZE  (sizeof(predefinedRangesStart)/sizeof(predefinedRangesStart[0]))
 
 #if defined(INFO)
-#include "AVRUtils.h"   // for getFreeRam()
+#include "AVRUtils.h"   // for printRAMInfo()
 #include "ShowInfo.h"   // printBODLevel()
 #endif
 
@@ -288,15 +288,15 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 /*
  * Attiny85
  */
-#define BUTTON_PIN 3 // define for EasyButton below.
+#define BUTTON_PIN      PIN_PB3 // define for EasyButton below.
 
 #ifdef LEGACY_LAYOUT
 // for existing Whistle Switches
-#define ADC_CHANNEL ADC_CHANNEL_DEFAULT // Channel ADC1 / PB2 defined in FrequencyDetector.h
-#define ADC_REFERENCE DEFAULT
-#define RELAY_OUT 4
-#define LED_FEEDBACK 0
-#define DEBUG_PIN 1
+#define ADC_CHANNEL     ADC_CHANNEL_DEFAULT // Channel ADC1 / PB2 defined in FrequencyDetector.h
+#define ADC_REFERENCE   DEFAULT
+#define RELAY_OUT       PIN_PB4
+#define LED_FEEDBACK    PIN_PB0
+#define DEBUG_PIN       PIN_PB1
 
 #else // LEGACY_LAYOUT
 /*
@@ -305,29 +305,35 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
  * 20x amplification mode uses DC Level at pin PB3 instead of ground. And the DC level at PB4 should be 27.5 mV (550 mV / 20) higher,
  * to have a full symmetrical range available for conversion.
  * To generate this DC levels and still use PB3 as button input, the button must be active high
- * and the 1k5 pullup must be connected to the other side of the shottky diode (to be active for programming by USB).
+ * and the 1k5 pullup must be connected to the other side of the schottky diode (to be active for programming by USB).
  *
  * for 1x amplification mode, button could be active low (in parallel to the zener),
- * but at 5 volt the 1k5 pullup consumes 1 mA for nothing if not reconnected the other side of the shottky diode.
+ * but at 5 volt the 1k5 pullup consumes 1 mA for nothing if not reconnected the other side of the schottky diode.
  * So I decided to enforce the pullup reconnection and have the button active high also for 1x amplification.
  */
 #define BUTTON_IS_ACTIVE_HIGH
 
-#define RELAY_OUT 0
-#define LED_FEEDBACK 1  // Digispark LED pin
-#define DEBUG_PIN 2
+#if defined(DIGISTUMPCORE)
+#define RELAY_OUT       PB0
+#define LED_FEEDBACK    PB1  // Digispark LED pin
+#define DEBUG_PIN       PB2
+#else
+#define RELAY_OUT       PIN_PB0
+#define LED_FEEDBACK    PIN_PB1  // Digispark LED pin
+#define DEBUG_PIN       PIN_PB2
+#endif
 
-#define ADC_REFERENCE INTERNAL  // 1V1
+#define ADC_REFERENCE   INTERNAL  // 1V1
 #  if defined(USE_ATTINY85_20X_AMPLIFICATION)
-#define ADC_CHANNEL 7           // Differential input (ADC2/PB4 - ADC3/PB3(Button)) * 20
+#define ADC_CHANNEL     7           // Differential input (ADC2/PB4 - ADC3/PB3(Button)) * 20
 #  else
 // x1 amplification here
-#define ADC_CHANNEL 2           // Channel ADC2 / PB4 - Signal is clamped by 3V3 zener diode but should anyway stay below 1.1V :-)
+#define ADC_CHANNEL     2           // Channel ADC2 / PB4 - Signal is clamped by 3V3 zener diode but should anyway stay below 1.1V :-)
 #  endif // USE_ATTINY85_20X_AMPLIFICATION
 #endif // LEGACY_LAYOUT
 
 #if (defined(INFO) || defined(DEBUG) || defined(TRACE) || defined(PRINT_INPUT_SIGNAL_TO_PLOTTER))
-#define TX_PIN      DEBUG_PIN // for ATtinySerialOut
+#define TX_PIN          DEBUG_PIN // for ATtinySerialOut
 #include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
 #endif
 
@@ -349,11 +355,11 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define LED_MATCH               9
 #define LED_HIGHER              10
 
-#define RELAY_OUT  11
-#define LED_FEEDBACK  LED_BUILTIN
+#define RELAY_OUT               11
+#define LED_FEEDBACK            LED_BUILTIN
 
-#define ADC_CHANNEL ADC_CHANNEL_DEFAULT // Channel ADC1
-#define ADC_REFERENCE INTERNAL // 1.1V
+#define ADC_CHANNEL             ADC_CHANNEL_DEFAULT // Channel ADC1
+#define ADC_REFERENCE           INTERNAL // 1.1V
 #define READ_SIGNAL_TIMING_OUTPUT_PIN 12
 #endif // (__AVR_ATmega328P__)
 
@@ -952,8 +958,8 @@ void setup() {
     eepromReadParameter();
 
 #if defined(INFO)
-    Serial.print(F("Free Ram/Stack[bytes]="));
-    Serial.println(getFreeRam());
+    Serial.print(F("Current free Heap / Stack[bytes]="));
+    Serial.println(getCurrentFreeHeapOrStack());
 
     Serial.print(F("Tone detection no dropout before display=" STR(MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) "ms, before relay="));
     Serial.print(MATCH_MILLIS_NEEDED_DEFAULT + MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH);

@@ -234,16 +234,10 @@ uint16_t sReadValueBuffer[SIGNAL_PLOTTER_BUFFER_SIZE];
  */
 uint16_t readSignal() {
     Myword tUValue;
-    /*
-     * disable Timer0 (millis()) overflow interrupt
-     */
-#if defined(TIMSK) && defined(TOIE)
-    cbi(TIMSK, TOIE);
-#else
-#error  Timer 0 overflow interrupt not disabled correctly
-#endif
 
-//  ADCSRB = 0; // free running mode  - is default
+    disableMillisInterrupt(); // disable Timer0 (millis()) overflow interrupt
+
+//  ADCSRB = 0; // free running mode  - not required, since it is default
     ADCSRA = ((1 << ADEN) | (1 << ADSC) | (1 << ADATE) | (1 << ADIF) | FrequencyDetectorControl.ADCPrescalerValue);
 
     bool tTriggerSearchStart = true;
@@ -279,7 +273,7 @@ uint16_t readSignal() {
         // Get value
         tUValue.byte.LowByte = ADCL;
         tUValue.byte.HighByte = ADCH;
-        ADCSRA |= (1 << ADIF); // clear bit to recognize next conversion has finished
+        ADCSRA |= (1 << ADIF); // clear bit to recognize next conversion has finished with "loop_until_bit_is_set(ADCSRA, ADIF)".
 
 #if defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
         if (i < SIGNAL_PLOTTER_BUFFER_SIZE) {
@@ -345,18 +339,7 @@ uint16_t readSignal() {
      * Enable millis timer (0|1) overflow interrupt and compensate for disabled timer, if still disabled.
      * We need 625 microseconds for other computations @1MHz.
      */
-    /*
-     * Enable timer 0 overflow interrupt and compensate for disabled timer, if still disabled.
-     */
-#if defined(TIMSK) && defined(TOIE)
-    if ((TIMSK & _BV(TOIE)) == 0) {
-        // still disabled -> compensate
-        timer0_millis += FrequencyDetectorControl.PeriodOfOneReadingMillis;
-    }
-    sbi(TIMSK, TOIE);
-#else
-#error  Timer 0 overflow interrupt not enabled correctly
-#endif
+    enableMillisInterrupt();
 
     /*
      * check for signal strength

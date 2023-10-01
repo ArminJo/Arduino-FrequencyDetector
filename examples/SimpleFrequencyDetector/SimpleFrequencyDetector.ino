@@ -54,10 +54,17 @@
 
 //#define INFO
 #if ! defined(LED_BUILTIN) && defined(ARDUINO_AVR_DIGISPARK)
+#  if defined(DIGISTUMPCORE)
 #define LED_BUILTIN PB1
+#  else
+#define LED_BUILTIN PIN_PB1
+#  endif
 #endif
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
+#  if defined(DIGISTUMPCORE)
+#define TX_PIN PB2 // (package pin 7 on Tiny85) - can use one of PB0 to PB4 (+PB5) here
+#  endif
 #include "ATtinySerialOut.hpp" // Available as Arduino library "ATtinySerialOut"
 #endif
 
@@ -70,7 +77,7 @@
 #endif
 
 #if defined(INFO)
-#include "AVRUtils.h" // for getFreeRam()
+#include "AVRUtils.h" // for printRAMInfo()
 #endif
 
 void setup() {
@@ -104,8 +111,8 @@ void setup() {
     // set my Frequency range
     setFrequencyDetectorMatchValues(1400, 1700);
 #if defined(INFO)
-    Serial.print(F("Free Ram/Stack[bytes]="));
-    Serial.println(getFreeRam());
+    Serial.print(F("Current free Heap / Stack[bytes]="));
+    Serial.println(getCurrentFreeHeapOrStack());
 #endif
 }
 
