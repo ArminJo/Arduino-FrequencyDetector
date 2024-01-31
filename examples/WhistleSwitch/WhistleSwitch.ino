@@ -527,7 +527,7 @@ void handleLedBlinkState() {
     Serial.print(" Last=");
     Serial.print(ButtonAtPin3.ButtonLastChangeMillis);
     Serial.print(" State=");
-    Serial.println(ButtonAtPin3.ButtonStateIsActive);
+    Serial.println(ButtonAtPin3.readButtonState());
 #endif // TRACE
 }
 

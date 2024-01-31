@@ -26,9 +26,9 @@
 #ifndef _FREQUENCY_DETECTOR_H
 #define _FREQUENCY_DETECTOR_H
 
-#define VERSION_FREQUENCY_DETECTOR "2.0.0"
+#define VERSION_FREQUENCY_DETECTOR "2.0.1"
 #define VERSION_FREQUENCY_DETECTOR_MAJOR 2
-#define VERSION_FREQUENCY_DETECTOR_MINOR 0
+#define VERSION_FREQUENCY_DETECTOR_MINOR 1
 // The change log is at the bottom of the file
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
@@ -286,6 +286,10 @@ struct FrequencyDetectorControlStruct {
 #define INTERNAL INTERNAL1V1
 #define INTERNAL2V56 9
 #define INTERNAL2V56_EXTCAP 13
+#endif
+
+#if defined(INTERNAL1V1) && !defined(INTERNAL)
+#define INTERNAL INTERNAL1V1 // for ATmega2560
 #endif
 
 extern FrequencyDetectorControlStruct FrequencyDetectorControl;

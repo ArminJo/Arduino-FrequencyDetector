@@ -1,15 +1,37 @@
+<div align = center>
+
 # [Frequency Detector](https://github.com/ArminJo/Arduino-FrequencyDetector) Library for Arduino and ATtinys
-Available as Arduino library "FrequencyDetector"
 
-### [Version 2.1.0](https://github.com/ArminJo/Arduino-FrequencyDetector/releases) - work in progress
+Detects frequency **from 38 Hz to 9612 Hz** and works even on an ATTiny85 with 1 MHz up to 4806 Hz.<br/>
+The input signal can be plotted to the Arduino Serial Plotter resulting in a **simple Oscilloscope** to test the internal signal.<br/>
+Only tested on ATtiny85 and ATmega328P.
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
-[![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithAction/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
-[![Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithScript/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
-![Hit Counter](https://visitor-badge.laobi.icu/badge?page_id=ArminJo_Arduino-FrequencyDetector)
+[![Badge License: GPLv3](https://img.shields.io/badge/License-GPLv3-brightgreen.svg)](https://www.gnu.org/licenses/gpl-3.0)
+ &nbsp; &nbsp; 
+[![Badge Version](https://img.shields.io/github/v/release/ArminJo/Arduino-FrequencyDetector?include_prereleases&color=yellow&logo=DocuSign&logoColor=white)](https://github.com/ArminJo/Arduino-FrequencyDetector/releases/latest)
+ &nbsp; &nbsp; 
+[![Badge Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest?color=yellow)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
+ &nbsp; &nbsp; 
+[![Badge Build Status](https://github.com/ArminJo/Arduino-FrequencyDetector/workflows/LibraryBuildWithAction/badge.svg)](https://github.com/ArminJo/Arduino-FrequencyDetector/actions)
+ &nbsp; &nbsp; 
+![Badge Hit Counter](https://visitor-badge.laobi.icu/badge?page_id=ArminJo_Arduino-FrequencyDetector)
+<br/>
+<br/>
+[![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://stand-with-ukraine.pp.ua)
 
-Detects frequency **from 38 Hz to 9612 Hz** and works even on an ATTiny85 with 1 MHz up to 4806 Hz. The input signal can be plotted to the Arduino Serial Plotter resulting in a **simple Oscilloscope** to test the internal signal.
+Available as [Arduino library "Arduino-FrequencyDetector"](https://www.arduinolibraries.info/libraries/frequency-detector).
+
+[![Button Install](https://img.shields.io/badge/Install-brightgreen?logoColor=white&logo=GitBook)](https://www.ardu-badge.com/Arduino-FrequencyDetector)
+ &nbsp; &nbsp; 
+[![Button Changelog](https://img.shields.io/badge/Changelog-blue?logoColor=white&logo=AzureArtifacts)](https://github.com/ArminJo/Arduino-FrequencyDetector#revision-history)
+
+</div>
+
+#### If you find this library useful, please give it a star.
+
+&#x1F30E; [Google Translate](https://translate.google.com/translate?sl=en&u=https://github.com/ArminJo/Arduino-FrequencyDetector)
+
+<br/>
 
 YouTube video of whistle switch example in action.
 
@@ -55,7 +77,7 @@ These macros must be defined in your program **before** the line `#include "Freq
 Modify them by enabling / disabling them, or change the values if applicable.
 
 | Name | Default value | Description |
-|-|-|-|
+|-|-:|-|
 | `PRINT_INPUT_SIGNAL_TO_PLOTTER` | disabled | Signal input data is stored and can be printed together with trigger levels using `printInputSignalValuesForArduinoPlotter()` like in the *SimpleFrequencyDetector* example to implement a simple digital oscilloscope using the Arduino 1.x Serial Plotter. |
 
 ### Arduino Plotter output of SimpleFrequencyDetector example with PRINT_INPUT_SIGNAL_TO_PLOTTER enabled
@@ -164,21 +186,21 @@ Discrete microphone amplifier with LM308
          |                             o-|_____|--o               |
          _                             |   1M     |               _
         | |                            |          |              | |
-        | | 2k2                        |___|\     |              | | 1M
+        | | 2k2                        o---|\     |              | | 1M
         |_|                            |  2| \____|              |_|
-         |    ____             ____    |   | /6   |   ____   | |  |
-         o---|____|-----o-----|____|---o---|/     o--|____|--| |--o--O PIN A1
+         |    _____           _____    |   | /6   |   ____   | |  |
+         o---|_____|----o----|_____|-------|/     o--|____|--| |--o--O PIN A1
          |     2k2      |      10k     |  3             10k  | |  |
         ---            |O MICROPHONE   _    LM308        10-100nF _
         --- 1 uF        |             | |                        | |
          |              |             | | 10k                    | | 1M
-        ___            ___            |_|                        |_|
+        _|_            _|_            |_|                        |_|
                                        |                          |
                                        |                          |
-                                      ---                        ___
+                                      ---                        _|_
                                       ---  100 nF
                                        |
-                                      ___
+                                      _|_
 ```
 
 ```
@@ -198,15 +220,15 @@ External circuit for 1x amplification configuration on a Digispark board.
   Pass  | |        ---                        | | * 1k5 pullup
    100k | |        --- 22n 2kHz Low           |_|
         |_|         |          Pass            |
-         |          |                   ____   |
-         o----------o           PB3 O--|____|--o
-         |                            * 68/22  |
+         |          |                  _____   |
+         o----------o         PB3 O---|_____|--o
+         |                           * 68/22   |
          |                                    __
          |                                    /\` * 3V6 Z-diode
          |                                    --
          |                                     |  * = assembled USB circuit on Digispark
          |                                     |
-        ___                                   ___
+        _|_                                   _|_
 ```
 
 ```
@@ -226,15 +248,15 @@ External circuit for 20x amplification configuration on a Digispark board.
   Pass  | |        ---                        | | * 1k5 pullup
     3k3 | |        --- 22n 2kHz Low           |_|
         |_|         |          Pass            |
-         |          |                   ____   |
-         o----------o--O PB3 22 mV-----|____|--o
-         |                            * 68/22  |
+         |          |                  _____   |
+         o----------o--O PB3 22 mV----|_____|--o
+         |                           * 68/22   |
          _                                    __
         | |                                   /\` * 3V6 Z-diode
     3k3 | |                                   --
         |_|                                    |  * = assembled USB circuit on Digispark
          |                                     |
-        ___                                   ___
+        _|_                                   _|_
 
   PB2 O-- Serial out 115200 baud
   PB1 O-- Feedback LED
@@ -273,5 +295,3 @@ The library examples are tested with GitHub Actions for the following boards:
 - arduino:avr:uno
 - digistump:avr:digispark-tiny1
 - ATTinyCore:avr:attinyx5:chip=85,clock=1internal
-
-#### If you find this library useful, please give it a star.
