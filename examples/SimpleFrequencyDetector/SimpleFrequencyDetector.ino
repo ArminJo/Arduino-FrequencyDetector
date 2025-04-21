@@ -5,7 +5,7 @@
  * If frequency is in the range of 1400 to 1700 Hz, the Arduino built in LED will light up.
  *
  *
- *  Copyright (C) 2014-2023  Armin Joachimsmeyer
+ *  Copyright (C) 2014-2025  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-FrequencyDetector https://github.com/ArminJo/Arduino-FrequencyDetector.
@@ -47,10 +47,13 @@
 
 #include <Arduino.h>
 
-#define LED_NO_TRIGGER  5
-#define LED_SIGNAL_STRENGTH  6
-#define LED_PLAUSI_FIRST  7
-#define LED_PLAUSI_DISTRIBUTION  8
+/*
+ * Pin definitions for real time status info with LEDs
+ */
+#define LED_PIN_NO_TRIGGER                  5
+#define LED_PIN_SIGNAL_STRENGTH_LOW         6
+#define LED_PIN_FREQUENCY_TOO_LOW_OR_HIGH   7
+#define LED_PIN_PLAUSI_DISTRIBUTION_FAILED  8
 
 //#define INFO
 #if ! defined(LED_BUILTIN) && defined(ARDUINO_AVR_DIGISPARK)
@@ -82,24 +85,31 @@
 
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
+
+    // initialize the digital real time LED status info pins as output
+    pinMode(LED_PIN_NO_TRIGGER, OUTPUT);
+    pinMode(LED_PIN_SIGNAL_STRENGTH_LOW, OUTPUT);
+    pinMode(LED_PIN_FREQUENCY_TOO_LOW_OR_HIGH, OUTPUT);
+    pinMode(LED_PIN_PLAUSI_DISTRIBUTION_FAILED, OUTPUT);
+
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/ \
+    || defined(SERIALUSB_PID)  || defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
     // Just to know which program is running on my Arduino
 #if !defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
     Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_FREQUENCY_DETECTOR));
+    Serial.println(
+            F(
+                    "LED for no trigger at pin " STR(LED_PIN_NO_TRIGGER) ", for signal strength too low  at pin " STR(LED_PIN_SIGNAL_STRENGTH_LOW) ", for frequency too low or too high at pin " STR(LED_PIN_FREQUENCY_TOO_LOW_OR_HIGH) ", for distribution plausi fail at pin " STR(LED_PIN_PLAUSI_DISTRIBUTION_FAILED)));
+
 #endif
-    // initialize the digital pin as an output.
-    pinMode(LED_PLAUSI_FIRST, OUTPUT);
-    pinMode(LED_PLAUSI_DISTRIBUTION, OUTPUT);
-    pinMode(LED_SIGNAL_STRENGTH, OUTPUT);
-    pinMode(LED_NO_TRIGGER, OUTPUT);
 
     /*
-     * initialize default values for high and low frequency and dropout counts for frequency detector.
+     * initialize default values for dropout counts for frequency detector.
      */
-    setFrequencyDetectorControlDefaults();
+    setFrequencyDropoutDefaults();
 
     /*
      * Set channel, reference, sample rate and threshold for low signal detection.
@@ -110,9 +120,13 @@ void setup() {
 
     // set my Frequency range
     setFrequencyDetectorMatchValues(1400, 1700);
+#if !defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
+    printFrequencyMatchValues(&Serial);
+#endif
 #if defined(INFO)
-    Serial.print(F("Current free Heap / Stack[bytes]="));
-    Serial.println(getCurrentFreeHeapOrStack());
+    // do not use printCurrentAvailableStackSize(&Serial) because we may use the ATtinySerialOut as Serial
+    Serial.print(F("Currently available Stack[bytes]="));
+    Serial.println(getCurrentAvailableStackSize());
 #endif
 }
 
@@ -126,24 +140,24 @@ void loop() {
     //    printPeriodLengthArray(&Serial);
 
     /*
-     * Show errors on LED's
+     * Show (error) status on LED's
      */
-    digitalWrite(LED_SIGNAL_STRENGTH, LOW);
-    digitalWrite(LED_PLAUSI_FIRST, LOW);
-    digitalWrite(LED_PLAUSI_DISTRIBUTION, LOW);
-    digitalWrite(LED_NO_TRIGGER, LOW);
+    digitalWrite(LED_PIN_SIGNAL_STRENGTH_LOW, LOW);
+    digitalWrite(LED_PIN_FREQUENCY_TOO_LOW_OR_HIGH, LOW);
+    digitalWrite(LED_PIN_PLAUSI_DISTRIBUTION_FAILED, LOW);
+    digitalWrite(LED_PIN_NO_TRIGGER, LOW);
 
     if (tFrequency == SIGNAL_STRENGTH_LOW) {
-        digitalWrite(LED_SIGNAL_STRENGTH, HIGH);
+        digitalWrite(LED_PIN_SIGNAL_STRENGTH_LOW, HIGH);
     }
     if (tFrequency == SIGNAL_FREQUENCY_TOO_LOW || tFrequency == SIGNAL_FREQUENCY_TOO_HIGH) {
-        digitalWrite(LED_PLAUSI_FIRST, HIGH);
+        digitalWrite(LED_PIN_FREQUENCY_TOO_LOW_OR_HIGH, HIGH);
     }
     if (tFrequency == SIGNAL_DISTRIBUTION_PLAUSI_FAILED) {
-        digitalWrite(LED_PLAUSI_DISTRIBUTION, HIGH);
+        digitalWrite(LED_PIN_PLAUSI_DISTRIBUTION_FAILED, HIGH);
     }
     if (tFrequency == SIGNAL_NO_TRIGGER) {
-        digitalWrite(LED_NO_TRIGGER, HIGH);
+        digitalWrite(LED_PIN_NO_TRIGGER, HIGH);
     }
 
 #if defined(PRINT_RESULTS_TO_SERIAL_PLOTTER)
@@ -161,17 +175,23 @@ void loop() {
     digitalWrite(LED_BUILTIN, LOW);
 
     if (tFrequency > SIGNAL_MAX_ERROR_CODE) {
+        Serial.print(tFrequency);
+        Serial.print(F("Hz "));
         /*
          * No signal errors here -> compute match
          */
         if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH) {
             // signal match
             digitalWrite(LED_BUILTIN, HIGH);
+        } else {
+            Serial.print(F("no "));
         }
+        Serial.println(F("match"));
+
 #if !defined(PRINT_RESULTS_TO_SERIAL_PLOTTER) && !defined(PRINT_INPUT_SIGNAL_TO_PLOTTER)
     } else {
         // incompatible with Serial Plotter
-        Serial.println(reinterpret_cast<const __FlashStringHelper *>(ErrorStrings[tFrequency]));
+        Serial.println(reinterpret_cast<const __FlashStringHelper*>(ErrorStrings[tFrequency]));
 #endif
     }
 }

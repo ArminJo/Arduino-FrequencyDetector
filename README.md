@@ -23,7 +23,7 @@ Available as [Arduino library "Arduino-FrequencyDetector"](https://www.arduinoli
 
 [![Button Install](https://img.shields.io/badge/Install-brightgreen?logoColor=white&logo=GitBook)](https://www.ardu-badge.com/Arduino-FrequencyDetector)
  &nbsp; &nbsp; 
-[![Button Changelog](https://img.shields.io/badge/Changelog-blue?logoColor=white&logo=AzureArtifacts)](https://github.com/ArminJo/Arduino-FrequencyDetector#revision-history)
+[![Button Changelog](https://img.shields.io/badge/Changelog-blue?logoColor=white&logo=AzureArtifacts)](https://github.com/ArminJo/Arduino-FrequencyDetector?tab=readme-ov-file#revision-history)
 
 </div>
 
@@ -79,6 +79,7 @@ Modify them by enabling / disabling them, or change the values if applicable.
 | Name | Default value | Description |
 |-|-:|-|
 | `PRINT_INPUT_SIGNAL_TO_PLOTTER` | disabled | Signal input data is stored and can be printed together with trigger levels using `printInputSignalValuesForArduinoPlotter()` like in the *SimpleFrequencyDetector* example to implement a simple digital oscilloscope using the Arduino 1.x Serial Plotter. |
+| `ADC_PRESCALE_VALUE_IS_NOT_CONSTANT` | disabled | Enable if you do not use the constant `PRESCALE_VALUE_DEFAULT` for parameter ADCPrescalerValue in the call of `setFrequencyDetectorReadingValues()` or `setFrequencyDetectorReadingPrescaleValue()`. |
 
 ### Arduino Plotter output of SimpleFrequencyDetector example with PRINT_INPUT_SIGNAL_TO_PLOTTER enabled
 ![Arduino Plotter output of SimpleFrequencyDetector example with `PRINT_INPUT_SIGNAL_TO_PLOTTER` enabled](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/SimpleFrequencyDetectorPlotterOutput.png)

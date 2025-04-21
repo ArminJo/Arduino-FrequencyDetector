@@ -65,14 +65,14 @@ jobs:
         uses: actions/checkout@master
 
       - name: Checkout master version of ATtinySerialOut
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
         with:
           repository: ArminJo/ATtinySerialOut
           ref: master
           path: CustomLibrary # must contain string "Custom"
 
 #      - name: Checkout second custom library # This name must be different from th one above
-#        uses: actions/checkout@v3
+#        uses: actions/checkout@master
 #        with:
 #          repository: ArminJo/Arduino-Utils
 #          ref: master
@@ -85,4 +85,3 @@ jobs:
           required-libraries: ${{ env.REQUIRED_LIBRARIES }}
           platform-url: ${{ matrix.platform-url }}
           sketches-exclude: ${{ matrix.sketches-exclude }}
-          cli-version: 0.33.0 # to avoid errors for ATTinyCore

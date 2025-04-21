@@ -46,7 +46,7 @@ jobs:
           - arduino:avr:uno
           - arduino:avr:uno|All-DEBUG
           - digistump:avr:digispark-tiny:clock=clock1
-          - ATTinyCore:avr:attinyx5:chip=85,clock=1internal
+#          - ATTinyCore:avr:attinyx5:chip=85,clock=1internal
 
         # Specify parameters for each board.
         # With sketches-exclude you may exclude specific examples for a board. Use a comma separated list.
@@ -60,13 +60,13 @@ jobs:
 
           - arduino-boards-fqbn: digistump:avr:digispark-tiny:clock=clock1  # ATtiny85 board @1 MHz
             platform-url: https://raw.githubusercontent.com/ArminJo/DigistumpArduino/master/package_digistump_index.json
-            sketch-names: SimpleFrequencyDetector.ino,50Hz # Comma separated list of sketch names (no path required) or patterns to use in build
+            sketch-names: SimpleFrequencyDetector.ino,50Hz.ino # Comma separated list of sketch names (without path, but with extension) or patterns to use in build
             build-properties:
               All: -DINFO
 #              WhistleSwitch: is 6 bytes too big :-(
 
-          - arduino-boards-fqbn: ATTinyCore:avr:attinyx5:chip=85,clock=1internal
-            platform-url: http://drazzy.com/package_drazzy.com_index.json
+#          - arduino-boards-fqbn: ATTinyCore:avr:attinyx5:chip=85,clock=1internal
+#            platform-url: http://drazzy.com/package_drazzy.com_index.json
 
       # Do not cancel all jobs / architectures if one job fails
       fail-fast: false
@@ -83,7 +83,7 @@ jobs:
           path: CustomLibrary # must contain string "Custom"
 
 #      - name: Checkout second custom library # This name must be different from th one above
-#        uses: actions/checkout@v3
+#        uses: actions/checkout@vmaster
 #        with:
 #          repository: ArminJo/Arduino-Utils
 #          ref: master
@@ -97,12 +97,11 @@ jobs:
           ENV_PLATFORM_URL: ${{ matrix.platform-url }}
           ENV_REQUIRED_LIBRARIES: ${{ env.REQUIRED_LIBRARIES }} # is empty here
           ENV_SKETCHES_EXCLUDE: ${{ matrix.sketches-exclude }}
-          ENV_BUILD_PROPERTIES: ${{ toJson(matrix.build-properties) }}
+          ENV_BUILD_PROPERTIES: -DDEBUG,-DINFO # is converted to '{ "All": "-DDEBUG -DINFO" }'
           ENV_SKETCH_NAMES: ${{ matrix.sketch-names }}
           ENV_SKETCH_NAMES_FIND_START: .
           ENV_DEBUG_INSTALL: true
           ENV_DEBUG_COMPILE: true
-          ENV_CLI_VERSION: 0.33.0 # to avoid errors for ATTinyCore
 
         run: |
           wget --quiet https://raw.githubusercontent.com/ArminJo/arduino-test-compile/master/arduino-test-compile.sh

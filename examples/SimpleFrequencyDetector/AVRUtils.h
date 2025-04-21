@@ -1,7 +1,7 @@
 /*
  * AVRUtils.h
  *
- *  Copyright (C) 2016-2020  Armin Joachimsmeyer
+ *  Copyright (C) 2016-2024  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-Utils https://github.com/ArminJo/Arduino-Utils.
@@ -20,13 +20,29 @@
  *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
+
+#include "Arduino.h"
+
+#if defined(__AVR__) && defined (SPMCSR) && !(defined(__AVR_ATtiny1616__)  || defined(__AVR_ATtiny3216__) || defined(__AVR_ATtiny3217__))
 #ifndef _AVR_UTILS_H
 #define _AVR_UTILS_H
 
-#if defined(__AVR__)
 #include <stdint.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include "avr/boot.h"
+
+/*
+ * The largest address just not allocated so far
+ * Under Unix, the "break value" was the end of the data
+ * segment as dynamically requested from the operating system.
+ * Since we don't have an operating system, just make sure
+ * that we don't collide with the stack.
+ */
+extern void *__brkval; // The largest address just not allocated so far / start of available / free heap, initialized at first malloc()
+extern void *__flp; //
+extern char __heap_start; // = __bss_end, the linker address of heap start
+#define HEURISTIC_ADDITIONAL_MALLOC_MARGIN 14 // No malloc() possible if size is lower than (__malloc_margin + HEURISTIC_ADDITIONAL_MALLOC_MARGIN)
 
 /*
  * storage for millis value to enable compensation for interrupt disable at signal acquisition etc.
@@ -50,30 +66,35 @@ void initSleep(uint8_t tSleepMode);
 void initPeriodicSleepWithWatchdog(uint8_t tSleepMode, uint8_t aWatchdogPrescaler);
 uint16_t computeSleepMillis(uint8_t aWatchdogPrescaler);
 void sleepWithWatchdog(uint8_t aWatchdogPrescaler, bool aAdjustMillis = false);
-extern volatile uint16_t sNumberOfSleeps;
 
 #include <Print.h>
 
-uint8_t* getHeapStart();
-uint16_t getCurrentFreeHeapOrStack(void);
-uint16_t getCurrentAvailableHeap(void);
-void printHeapStart(Print *aSerial);
-void printCurrentFreeHeap(Print *aSerial);
-void printCurrentAvailableHeap(Print *aSerial);
+uint8_t* getAvailableHeapStart();
+void printAvailableHeapStart(Print *aSerial);
+uint16_t getCurrentAvailableStackSize(void);
+void printCurrentAvailableStackSize(Print *aSerial);
+uint16_t getCurrentAvailableHeapSize(void);
+void printCurrentAvailableHeapSize(Print *aSerial);
+void printCurrentAvailableHeapSizeSimple(Print *aSerial);
+#define PRINT_AVAILABLE_HEAP    Serial.print(F("available="));Serial.println(SP - (uint16_t) __brkval + 1 - ((uint16_t) __malloc_margin + HEURISTIC_ADDITIONAL_MALLOC_MARGIN))
 
 #define HEAP_STACK_UNTOUCHED_VALUE 0x5A
 void initStackFreeMeasurement();
-uint16_t getStackUnusedBytes();
-uint16_t getStackUsedBytes();
-uint16_t getStackUnusedAndUsedBytes(uint16_t *aStackUsedBytesPointer);
-void printStackUsedBytes(Print *aSerial);
-void printStackUnusedAndUsedBytes(Print *aSerial);
-void printStackUnusedAndUsedBytesIfChanged(Print *aSerial);
 
+int16_t getStackMaxUsedAndUnusedSizes(uint16_t *aStackUnusedSizePointer);
+void printStackMaxUsedAndUnusedSizes(Print *aSerial);
+bool printStackMaxUsedAndUnusedSizesIfChanged(Print *aSerial);
+
+void printBaseRAMData(Print *aSerial);
 void printRAMInfo(Print *aSerial);
 
 bool isAddressInRAM(void *aAddressToCheck);
-bool isAddressBelowHeap(void *aAddressToCheck);
+bool isAddressBelowAvailableHeapStart(void *aAddressToCheck);
 
-#endif //  defined(__AVR__)
+void set__malloc_margin(uint8_t aNewMallocMargin);
+void reset__malloc_margin();
+
+void testCallocSizesAndPrint(Print *aSerial);
+
 #endif // _AVR_UTILS_H
+#endif //  defined(__AVR__)

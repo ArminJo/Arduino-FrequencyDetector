@@ -51,9 +51,11 @@ extern volatile unsigned long timer0_millis;
 
 void delayAndCallFunctionEveryMillis(unsigned int aDelayMillis, void (*aDelayCallback)(void));
 
+#if (defined(TIMSK) && defined(TOIE)) || (defined(TIMSK0) && defined(TOIE0))
 void disableMillisInterrupt();
-void addToMillis(uint16_t aMillisToAdd);
 void enableMillisInterrupt(uint16_t aMillisToAddForCompensation = 0);
+#endif
+void addToMillis(uint16_t aMillisToAdd);
 
 void speedTestWith1kCalls(Print *aSerial, void (*aFunctionUnderTest)(void));
 #endif //  defined(__AVR__)

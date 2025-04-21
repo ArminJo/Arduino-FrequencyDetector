@@ -3,7 +3,7 @@
  *
  * Analyzes a microphone signal and outputs the detected frequency.
  *
- *  Copyright (C) 2014  Armin Joachimsmeyer
+ *  Copyright (C) 2014-2025  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-FrequencyDetector https://github.com/ArminJo/Arduino-FrequencyDetector.
@@ -31,25 +31,33 @@
 #define VERSION_FREQUENCY_DETECTOR_MINOR 1
 // The change log is at the bottom of the file
 
+/*
+ * Enable ADC_PRESCALE_VALUE_IS_NOT_CONSTANT if you do not use the constant PRESCALE_VALUE_DEFAULT for parameter ADCPrescalerValue
+ * in the call of setFrequencyDetectorReadingValues() or setFrequencyDetectorReadingPrescaleValue()
+ */
+//#define ADC_PRESCALE_VALUE_IS_NOT_CONSTANT
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
 #include "ATtinySerialOut.h" // For redefining Print. Available as Arduino library
+#define NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION 512L // This does NOT occupy RAM, only (NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION / MIN_SAMPLES_PER_PERIOD) bytes are required.
+#else
+#define NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION 1024L
 #endif
 
 //#define PRINT_INPUT_SIGNAL_TO_PLOTTER     // If enabled, store SIGNAL_PLOTTER_BUFFER_SIZE input samples for printing to Arduino Plotter
 
-#if (RAMEND < 1000)
+#if ((RAMEND - RAMSTART) < 1023)
 #define SIGNAL_PLOTTER_BUFFER_SIZE 100 // ATtiny85 -> Store only start of signal in plotter buffer
 #elif (NUMBER_OF_SAMPLES < 1024)
-#define SIGNAL_PLOTTER_BUFFER_SIZE NUMBER_OF_2_COMPRESSED_SAMPLES // ATmega328 -> Can store complete signal in plotter buffer
+#define SIGNAL_PLOTTER_BUFFER_SIZE NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION // ATmega328 -> Can store complete signal in plotter buffer
 #else
 #define SIGNAL_PLOTTER_BUFFER_SIZE 512
 #endif
 
 //#define FREQUENCY_RANGE_LOW // use it for frequencies below approximately 500 Hz
+//#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 2000 Hz
 #if ! defined(FREQUENCY_RANGE_LOW) && ! defined(FREQUENCY_RANGE_HIGH)
 #define FREQUENCY_RANGE_DEFAULT // good for frequencies from 100 to 2200 Hz
 #endif
-//#define FREQUENCY_RANGE_HIGH // use it for frequencies above approximately 2000 Hz
 
 /*
  * Global settings which are required at compile time
@@ -64,8 +72,6 @@
  * FREQUENCY_RANGE_DEFAULT -> 52 usec/sample -> 75 to 2403 Hz with 1024 samples and 150 to 2403 Hz with 512 samples.
  * FREQUENCY_RANGE_LOW -> 104 usec/sample -> 38 to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
  */
-#define NUMBER_OF_2_COMPRESSED_SAMPLES 512 // This does NOT occupy RAM, only (NUMBER_OF_2_COMPRESSED_SAMPLES / MIN_SAMPLES_PER_PERIOD) bytes are required.
-//#define NUMBER_OF_2_COMPRESSED_SAMPLES 1024
 
 /*
  * Default values for plausibility, you may change them if necessary
@@ -77,7 +83,7 @@
  * So we have 150 to 2403 Hz at 52 usec/sample and 512 buffer
  */
 #define MINIMUM_NUMBER_OF_TRIGGER_PER_BUFFER 8 // => Min frequency is 150 Hz at 52 usec/sample, 600 Hz at 13 usec/sample for 512 buffer size
-#define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_2_COMPRESSED_SAMPLES / MIN_SAMPLES_PER_PERIOD) // 512 / 8 = 64
+#define SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI (NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION / MIN_SAMPLES_PER_PERIOD) // 512 / 8 = 64
 
 /*
  * Defaults for reading
@@ -109,6 +115,8 @@
 #define ADC_PRESCALE32   5
 #define ADC_PRESCALE64   6
 #define ADC_PRESCALE128  7
+
+#if !defined(ADC_PRESCALE_VALUE_IS_NOT_CONSTANT)
 
 /*
  * Default timing for reading is 19,23 kHz sample rate, giving a range from 300 to 2403 Hz at 1024 samples.
@@ -149,18 +157,23 @@
 #define PRESCALE_VALUE_DEFAULT ADC_PRESCALE2 // 26 microseconds per ADC sample at 1 MHz Clock => 38.461 kHz sample rate
 #define MICROS_PER_SAMPLE 26
 #  endif
-#endif
+#endif // defined(FREQUENCY_RANGE_DEFAULT)
 #if !defined(PRESCALE_VALUE_DEFAULT)
 # error "F_CPU is not one of 16000000, 8000000 or 1000000"
 #endif
 
-#define CLOCKS_FOR_READING_NO_LOOP 625 // extra clock cycles outside of the loop for one signal reading. Used to compensate millis();
-#define MICROS_PER_BUFFER_READING ((MICROS_PER_SAMPLE * NUMBER_OF_2_COMPRESSED_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP)
+#define MICROS_PER_BUFFER_READING (MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION)
+#else
+#define MICROS_PER_BUFFER_READING (FrequencyDetectorControl.PeriodOfOneSampleMicros * NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION)
+#endif // !defined(ADC_PRESCALE_VALUE_IS_NOT_CONSTANT)
+
+#define CLOCKS_FOR_READ_SIGNAL_NO_LOOP 625 // Extra clock cycles outside of the loop for one signal reading.
+#define MICROS_FOR_READ_SIGNAL (MICROS_PER_BUFFER_READING + (CLOCKS_FOR_READ_SIGNAL_NO_LOOP / (F_CPU / 1000000)))
 
 // number of allowed error (FrequencyRaw <= SIGNAL_MAX_ERROR_CODE) conditions, before match = FREQUENCY_MATCH_INVALID
-#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT ((MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
+#define MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT ((MAX_DROPOUT_MILLIS_BEFORE_NO_FILTERED_MATCH_DEFAULT * 1000L) / MICROS_FOR_READ_SIGNAL)
 // number of required valid readings (FrequencyRaw > SIGNAL_MAX_ERROR_CODE) before any (lower, match, higher) match - to avoid short flashes at random signal input
-#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT ((MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT * 1000L) / MICROS_PER_BUFFER_READING)
+#define MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT ((MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH_DEFAULT * 1000L) / MICROS_FOR_READ_SIGNAL)
 
 /*
  * FrequencyRaw error values
@@ -184,7 +197,7 @@ extern const char *ErrorStrings[SIGNAL_MAX_ERROR_CODE + 1];
 
 // Result values for Match*. Use compiler switch -fshort-enums otherwise it inflates the generated code
 enum MatchStateEnum {
-    FREQUENCY_MATCH_INVALID /*Errors have happened*/, FREQUENCY_MATCH_TO_LOW, FREQUENCY_MATCH, FREQUENCY_MATCH_TO_HIGH
+    FREQUENCY_MATCH_INVALID /*Errors have happened*/, FREQUENCY_MATCH_TOO_LOW, FREQUENCY_MATCH, FREQUENCY_MATCH_TOO_HIGH
 };
 
 /*
@@ -209,10 +222,11 @@ struct FrequencyDetectorControlStruct {
      * 3 Values set by setFrequencyDetectorReadingPrescaleValue()
      */
     uint8_t ADCPrescalerValue;
-    uint16_t FrequencyOfOneSample;      // to compute the frequency from the number of samples of one signal wave
-    uint16_t PeriodOfOneSampleMicros;   // to compute the matches required from the number of loops
-    uint16_t PeriodOfOneReadingMillis;  // to correct the millis() value after each reading
-
+#if defined(ADC_PRESCALE_VALUE_IS_NOT_CONSTANT)
+    uint32_t FrequencyEquivalentOfOneSample;    // 1000000L / MICROS_PER_SAMPLE. 76923 for 13 us sample time
+    uint16_t PeriodOfOneSampleMicros;           // MICROS_PER_SAMPLE
+    uint16_t PeriodOfOneReadSignalMillis;       // to compute counts used for match timing
+#endif
     /*
      * Value set by setFrequencyDetectorReadingValues()
      * Minimum signal strength value to produce valid output and do new trigger level computation. Otherwise return SIGNAL_STRENGTH_LOW
@@ -239,7 +253,7 @@ struct FrequencyDetectorControlStruct {
      */
     uint16_t FrequencyRaw;   // Frequency in Hz set by readSignal() or "error code"  SIGNAL_... set by doEqualDistributionPlausi()
     uint8_t PeriodCount; // Count of periods in current reading - !!! cannot be greater than SIZE_OF_PERIOD_LEGTH_ARRAY_FOR_PLAUSI - 1) (=63) !!!
-    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_2_COMPRESSED_SAMPLES(512) / 8 (= 64)
+    uint8_t PeriodLength[SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI]; // Array of period length of the signal for plausi, size is NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION(512) / 8 (= 64)
     uint16_t TriggerFirstPosition; // position of first detection of a trigger in all samples
     uint16_t TriggerLastPosition;  // position of last detection of a trigger in all samples
 
@@ -259,7 +273,7 @@ struct FrequencyDetectorControlStruct {
     // OUTPUT
     uint16_t FrequencyFiltered;   // Low pass filter value for frequency, e.g. to compute stable difference to target frequency.
 
-    uint8_t FrequencyMatchDirect; // Result of match: 0 to 3, FREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_TO_LOW, FREQUENCY_MATCH, FREQUENCY_MATCH_TO_HIGH
+    uint8_t FrequencyMatchDirect; // Result of match: 0 to 3, FREQUENCY_MATCH_INVALID, FREQUENCY_MATCH_TOO_LOW, FREQUENCY_MATCH, FREQUENCY_MATCH_TOO_HIGH
     uint8_t FrequencyMatchFiltered; // same range asFrequencyMatchDirect. Match state processed by low pass filter
     // INTERNALLY
     uint8_t MatchLowPassFiltered; // internal value 0 to FILTER_VALUE_MAX/200. Low pass filter value for computing FrequencyMatchFiltered
@@ -295,6 +309,7 @@ struct FrequencyDetectorControlStruct {
 extern FrequencyDetectorControlStruct FrequencyDetectorControl;
 
 void setFrequencyDetectorControlDefaults();
+void setFrequencyDropoutDefaults();
 void setFrequencyDetectorReadingDefaults();
 void setFrequencyDetectorReadingValues(uint8_t aADCChannel, uint8_t aADCReference, uint8_t aADCPrescalerValue,
         uint16_t aRawVoltageMinDelta);
@@ -308,6 +323,7 @@ uint16_t doEqualDistributionPlausi();
 void computeDirectAndFilteredMatch(uint16_t aFrequency);
 
 void printTriggerValues(Print *aSerial);
+void printFrequencyMatchValues(Print *aSerial);
 void printPeriodLengthArray(Print *aSerial);
 void printLegendForArduinoPlotter(Print *aSerial) __attribute__ ((deprecated ("Renamed to printResultLegendForArduinoPlotter().")));
 void printDataForArduinoPlotter(Print *aSerial) __attribute__ ((deprecated ("Renamed to printResultDataForArduinoPlotter().")));
@@ -335,7 +351,7 @@ void printInputSignalValuesForArduinoPlotter(Print *aSerial);
  *
  * Version 1.1.0 - 1/2020
  * - Corrected formula for compensating millis().
- * - New field PeriodOfOneReadingMillis.
+ * - New field PeriodOfOneReadSignalMillis.
  * - Now accept dropout values in milliseconds.
  * - New functions printResultLegendForArduinoPlotter() and printResultDataForArduinoPlotter().
  */

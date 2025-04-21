@@ -41,7 +41,7 @@
 void delayAndCallFunctionEveryMillis(unsigned int aDelayMillis, void (*aDelayCallback)(void)) {
     uint32_t tStartMillis = millis();
     do {
-        if (aDelayCallback != NULL) {
+        if (aDelayCallback != nullptr) {
             aDelayCallback();
         }
         delay(1);
@@ -55,6 +55,7 @@ void addToMillis(uint16_t aMillisToAdd) {
     timer0_millis += aMillisToAdd;
 }
 
+#if (defined(TIMSK) && defined(TOIE)) || (defined(TIMSK0) && defined(TOIE0))
 /*
  * disable Timer0 (millis()) overflow interrupt
  * since the loop last exactly a multiple of 1024 micros, add a few statements between disabling and enabling
@@ -90,6 +91,7 @@ void enableMillisInterrupt(uint16_t aMillisToAddForCompensation) {
 #endif
 }
 
+#endif // (defined(TIMSK) && defined(TOIE)) || (defined(TIMSK0) && defined(TOIE0))
 #endif //  defined(__AVR__)
 
 #if ! defined(TEENSYDUINO)
@@ -145,13 +147,13 @@ void speedTestWith1kCalls(Print *aSerial, void (*aFunctionUnderTest)(void)) {
     uint32_t tMillisRequired = millis() - tMillisStart;
     aSerial->print(F("Function call takes "));
     if (tMillisRequired > 1000000) {
-        Serial.print(tMillisRequired / 1000);
-        Serial.print(",");
-        Serial.print((tMillisRequired % 1000) / 100);
-        Serial.print(F(" milli"));
+        aSerial->print(tMillisRequired / 1000);
+        aSerial->print(",");
+        aSerial->print((tMillisRequired % 1000) / 100);
+        aSerial->print(F(" milli"));
     } else {
-        Serial.print(tMillisRequired);
-        Serial.print(F(" micro"));
+        aSerial->print(tMillisRequired);
+        aSerial->print(F(" micro"));
     }
     aSerial->println(F(" seconds."));
 }

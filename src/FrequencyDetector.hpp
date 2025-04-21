@@ -3,7 +3,7 @@
  *
  * Analyzes a microphone signal and outputs the detected frequency. It simply counts zero crossings and do not use FFT.
  * The ADC sample data is NOT stored in RAM, only the period lengths are stored in the PeriodLength[] array,
- * which is a byte array and has the size of NUMBER_OF_2_COMPRESSED_SAMPLES / 8.
+ * which is a byte array and has the size of NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION / 8.
  *
  * The timer 0 interrupt, which counts the milliseconds, is disabled during reading and enabled afterwards!
  * The value of millis() is adjusted after reading.
@@ -11,7 +11,7 @@
  *
  * By enabling PRINT_INPUT_SIGNAL_TO_PLOTTER it can be used as simple oscilloscope.
  *
- *  Copyright (C) 2014-2023  Armin Joachimsmeyer
+ *  Copyright (C) 2014-2025  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-FrequencyDetector https://github.com/ArminJo/Arduino-FrequencyDetector.
@@ -75,6 +75,11 @@
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
 
+#if !defined(STR)
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+#endif
+
 #include "MillisUtils.h" // for timer0_millis
 
 //
@@ -129,17 +134,29 @@ void setFrequencyDetectorReadingValues(uint8_t aADCChannel, const uint8_t aADCRe
 
 void setFrequencyDetectorReadingPrescaleValue(uint8_t aADCPrescalerValue) {
     FrequencyDetectorControl.ADCPrescalerValue = aADCPrescalerValue;
+#if defined(ADC_PRESCALE_VALUE_IS_NOT_CONSTANT)
     //Formula is F_CPU / (PrescaleFactor * 13)
     FrequencyDetectorControl.PeriodOfOneSampleMicros = ((1 << aADCPrescalerValue) * 13) / (F_CPU / 1000000L);
-    FrequencyDetectorControl.PeriodOfOneReadingMillis = ((FrequencyDetectorControl.PeriodOfOneSampleMicros
-            * (uint32_t) NUMBER_OF_2_COMPRESSED_SAMPLES) + CLOCKS_FOR_READING_NO_LOOP) / 1000;
-    uint32_t tFrequencyOfOneSample = 1000000L / FrequencyDetectorControl.PeriodOfOneSampleMicros;
-    FrequencyDetectorControl.FrequencyOfOneSample = tFrequencyOfOneSample;
+    FrequencyDetectorControl.PeriodOfOneReadSignalMillis = ((FrequencyDetectorControl.PeriodOfOneSampleMicros
+            * (uint32_t) NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION) + (CLOCKS_FOR_READ_SIGNAL_NO_LOOP / (F_CPU / 1000000)))
+            / 1000;
+    FrequencyDetectorControl.FrequencyEquivalentOfOneSample = 1000000L / FrequencyDetectorControl.PeriodOfOneSampleMicros;
 
-#if defined(INFO)
+#  if defined(INFO)
     Serial.print(F("SamplePeriod="));
     Serial.print(FrequencyDetectorControl.PeriodOfOneSampleMicros);
+    Serial.print(F("us, samples per detection=" STR(NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION) ", SampleDuration="));
+    Serial.print(FrequencyDetectorControl.PeriodOfOneSampleMicros * (uint32_t) NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION);
     Serial.println(F("us"));
+#  endif
+#else
+#  if defined(INFO)
+    Serial.print(
+            F(
+                    "SamplePeriod=" STR(MICROS_PER_SAMPLE) "us, samples per detection=" STR(NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION) ", SampleDuration="));
+    Serial.print(MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION);
+    Serial.println(F("us"));
+#  endif
 #endif
 }
 
@@ -158,14 +175,15 @@ void setFrequencyDetectorDropoutCounts(uint8_t aMinMatchNODropoutCount, uint8_t 
 /*
  * Computes MinMatchNODropoutCount and MaxMatchDropoutCount.
  * If program size matters, use setFrequencyDetectorDropoutCounts() instead or set them directly.
- * @return true if values set, false if PeriodOfOneReadingMillis == 0
+ * @return true if values set, false if PeriodOfOneReadSignalMillis == 0
  */
 bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_t aMaxMatchDropoutMillis) {
     bool tRetval = false;
-    if (FrequencyDetectorControl.PeriodOfOneReadingMillis != 0) {
+#if defined(ADC_PRESCALE_VALUE_IS_NOT_CONSTANT)
+    if (FrequencyDetectorControl.PeriodOfOneReadSignalMillis != 0) {
         FrequencyDetectorControl.MinMatchNODropoutCount = aMinMatchNODropoutMillis
-                / FrequencyDetectorControl.PeriodOfOneReadingMillis;
-        FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutMillis / FrequencyDetectorControl.PeriodOfOneReadingMillis;
+                / FrequencyDetectorControl.PeriodOfOneReadSignalMillis;
+        FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutMillis / FrequencyDetectorControl.PeriodOfOneReadSignalMillis;
         // set initial to maximum dropouts
         FrequencyDetectorControl.MatchDropoutCount = FrequencyDetectorControl.MinMatchNODropoutCount
                 + FrequencyDetectorControl.MaxMatchDropoutCount;
@@ -176,6 +194,19 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
         Serial.println(F("Error. Values not set! Must call setFrequencyDetectorReadingPrescaleValue() before!"));
 #endif
     }
+
+#else
+    FrequencyDetectorControl.MinMatchNODropoutCount = aMinMatchNODropoutMillis
+            / (((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION)
+                    + (CLOCKS_FOR_READ_SIGNAL_NO_LOOP / (F_CPU / 1000000))) / 1000);
+
+    FrequencyDetectorControl.MaxMatchDropoutCount = aMaxMatchDropoutMillis
+            / (((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION)
+                    + (CLOCKS_FOR_READ_SIGNAL_NO_LOOP / (F_CPU / 1000000))) / 1000);
+    // set initial to maximum dropouts
+    FrequencyDetectorControl.MatchDropoutCount = FrequencyDetectorControl.MinMatchNODropoutCount
+            + FrequencyDetectorControl.MaxMatchDropoutCount;
+#endif
 #if defined(INFO)
     Serial.print(F("MinMatchNODropoutCount="));
     Serial.print(FrequencyDetectorControl.MinMatchNODropoutCount);
@@ -184,13 +215,21 @@ bool setFrequencyDetectorDropoutTimes(uint16_t aMinMatchNODropoutMillis, uint16_
 #endif
     return tRetval;
 }
+
+/*
+ * Initialize default values for dropout counts for frequency detector.
+ */
+void setFrequencyDropoutDefaults() {
+    setFrequencyDetectorDropoutCounts(MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT,
+    MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT);
+}
+
 /*
  * Initialize default values for high and low frequency and dropout counts for frequency detector.
  */
 void setFrequencyDetectorControlDefaults() {
     setFrequencyDetectorMatchValues(FREQUENCY_MIN_DEFAULT, FREQUENCY_MAX_DEFAULT);
-    setFrequencyDetectorDropoutCounts(MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT,
-    MAX_DROPOUT_COUNT_BEFORE_NO_FILTERED_MATCH_DEFAULT);
+    setFrequencyDropoutDefaults();
 }
 
 /*
@@ -208,7 +247,7 @@ void setFrequencyDetectorReadingDefaults() {
 uint16_t sReadValueBuffer[SIGNAL_PLOTTER_BUFFER_SIZE];
 #endif
 /*
- * ADC read routine reads NUMBER_OF_2_COMPRESSED_SAMPLES (1024/512) samples and computes:
+ * ADC read routine reads NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION (1024/512) samples and computes:
  * - FrequencyDetectorControl.FrequencyRaw - Frequency of signal
  * or error value SIGNAL_STRENGTH_LOW if signal is too weak
  *
@@ -230,6 +269,8 @@ uint16_t sReadValueBuffer[SIGNAL_PLOTTER_BUFFER_SIZE];
  * The alternative of using disable interrupt is getting wrong results!!!
  * The value of millis() is adjusted manually after reading.
  *
+ * MICROS_PER_BUFFER_READING + 625 clocks for each call of readSignal()
+ *
  * @return the frequency as detected during the reading
  */
 uint16_t readSignal() {
@@ -240,8 +281,9 @@ uint16_t readSignal() {
 //  ADCSRB = 0; // free running mode  - not required, since it is default
     ADCSRA = ((1 << ADEN) | (1 << ADSC) | (1 << ADATE) | (1 << ADIF) | FrequencyDetectorControl.ADCPrescalerValue);
 
+    // Do initialization while first conversion is running
     bool tTriggerSearchStart = true;
-    bool tSignalTriggerFound = false;
+    bool tSignalFirstTriggerFound = false;
     uint16_t tPeriodCountPosition = 0;
 
     // Initialize max and min
@@ -249,7 +291,7 @@ uint16_t readSignal() {
     uint16_t tValueMin = 1024;
     uint32_t tSumOfSampleValues = 0;
 
-    uint8_t tPeriodCount = 0;
+    uint8_t tPeriodCount = 0; // Next index in PeriodLength[] array to write -> number of valid entries in PeriodLength[] array
     // requires 30 bytes more program memory but speeds up loop by 9 cycles
     uint16_t tTriggerLevelLower = FrequencyDetectorControl.TriggerLevelLower;
     uint16_t tTriggerLevel = FrequencyDetectorControl.TriggerLevel;
@@ -257,8 +299,8 @@ uint16_t readSignal() {
     /*
      * Read 512/1024 samples but only store periods
      */
-    for (unsigned int i = 0; i < NUMBER_OF_2_COMPRESSED_SAMPLES; i++) {
-        // loop takes around 39 cycles at least and we have 52 cycles @1MHz between each conversion
+    for (unsigned int i = 0; i < NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION; i++) {
+        // loop takes around 39 cycles at least and we have 52 us between each conversion for FREQUENCY_RANGE_DEFAULT
         /*
          * wait for free running conversion to finish.
          * Do not wait for ADSC here, since ADSC is only low for 1 ADC Clock cycle on free running conversion.
@@ -295,19 +337,21 @@ uint16_t readSignal() {
                 /*
                  * Trigger found but skip first (incomplete period)
                  */
-                if (tSignalTriggerFound) {
-                    if (tPeriodCount < SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI - 1) {
-                        FrequencyDetectorControl.PeriodLength[tPeriodCount] = i - tPeriodCountPosition;
+                if (tSignalFirstTriggerFound) {
+                    if (tPeriodCount >= SIZE_OF_PERIOD_LENGTH_ARRAY_FOR_PLAUSI - 1) {
+                        // Frequency too high
+                        FrequencyDetectorControl.FrequencyRaw = SIGNAL_FREQUENCY_TOO_HIGH;
                     } else {
-                        FrequencyDetectorControl.FrequencyRaw = SIGNAL_FREQUENCY_TOO_HIGH; // Frequency too high
+                        FrequencyDetectorControl.PeriodLength[tPeriodCount] = i - tPeriodCountPosition;
                     }
                     tPeriodCount++; // we can have a roll over if buffer > 512 and extreme high frequency
                     tPeriodCountPosition = i;
                 } else {
+                    // skip first (incomplete period)
                     FrequencyDetectorControl.TriggerFirstPosition = i;
                     tPeriodCountPosition = i;
                 }
-                tSignalTriggerFound = true;
+                tSignalFirstTriggerFound = true;
                 tTriggerSearchStart = true;
             }
         }
@@ -323,9 +367,14 @@ uint16_t readSignal() {
         }
     }
 
+    /*
+     * Enable millis timer (0|1) overflow interrupt and compensate for disabled timer, if still disabled.
+     */
+    enableMillisInterrupt(MICROS_PER_BUFFER_READING / 1000);
+
     ADCSRA &= ~(1 << ADATE); // Disable ADC auto-triggering
 
-    FrequencyDetectorControl.AverageLevel = tSumOfSampleValues / NUMBER_OF_2_COMPRESSED_SAMPLES;
+    FrequencyDetectorControl.AverageLevel = tSumOfSampleValues / NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION;
     FrequencyDetectorControl.TriggerLastPosition = tPeriodCountPosition;
     FrequencyDetectorControl.PeriodCount = tPeriodCount;
 
@@ -334,12 +383,6 @@ uint16_t readSignal() {
     // Take middle between min and max
     uint16_t tTriggerValue = tValueMin + (tDelta / 2);
     FrequencyDetectorControl.TriggerLevel = tTriggerValue;
-
-    /*
-     * Enable millis timer (0|1) overflow interrupt and compensate for disabled timer, if still disabled.
-     * We need 625 microseconds for other computations @1MHz.
-     */
-    enableMillisInterrupt();
 
     /*
      * check for signal strength
@@ -360,10 +403,16 @@ uint16_t readSignal() {
         } else {
             /*
              * Must use long intermediate value to avoid 16 Bit overflow
-             * (FrequencyDetectorControl.FrequencyOfOneSample / Number of samples) => frequency for one period in number of samples
+             * Average number of samples between triggers = (TriggerLastPosition - TriggerFirstPosition) / tPeriodCount
+             * (FrequencyDetectorControl.FrequencyEquivalentOfOneSample / Average number of samples between triggers) => frequency for one period in number of samples
              */
-            FrequencyDetectorControl.FrequencyRaw = ((long) tPeriodCount * FrequencyDetectorControl.FrequencyOfOneSample)
+#if defined(ADC_PRESCALE_VALUE_IS_NOT_CONSTANT)
+            FrequencyDetectorControl.FrequencyRaw = ((long) tPeriodCount * FrequencyDetectorControl.FrequencyEquivalentOfOneSample)
                     / (FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition);
+#else
+            FrequencyDetectorControl.FrequencyRaw = ((long) tPeriodCount * (1000000L / MICROS_PER_SAMPLE))
+                    / (FrequencyDetectorControl.TriggerLastPosition - FrequencyDetectorControl.TriggerFirstPosition);
+#endif
 
 #if defined(DEBUG)
             Serial.print(F("Delta U="));
@@ -475,11 +524,11 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
         uint8_t tNewFilterValue;
         if (aFrequency < FrequencyDetectorControl.FrequencyMatchLow) {
             // Frequency too low
-            FrequencyDetectorControl.FrequencyMatchDirect = FREQUENCY_MATCH_TO_LOW;
+            FrequencyDetectorControl.FrequencyMatchDirect = FREQUENCY_MATCH_TOO_LOW;
             tNewFilterValue = FILTER_VALUE_MIN;
         } else if (aFrequency > FrequencyDetectorControl.FrequencyMatchHigh) {
             // Frequency too high
-            FrequencyDetectorControl.FrequencyMatchDirect = FREQUENCY_MATCH_TO_HIGH;
+            FrequencyDetectorControl.FrequencyMatchDirect = FREQUENCY_MATCH_TOO_HIGH;
             tNewFilterValue = FILTER_VALUE_MAX;
         } else {
             // Frequency matches
@@ -512,18 +561,15 @@ void computeDirectAndFilteredMatch(uint16_t aFrequency) {
             FrequencyDetectorControl.FrequencyMatchFiltered = FREQUENCY_MATCH_INVALID;
         } else {
             if (FrequencyDetectorControl.MatchLowPassFiltered > FILTER_VALUE_MATCH_HIGHER_THRESHOLD) {
-                FrequencyDetectorControl.FrequencyMatchFiltered = FREQUENCY_MATCH_TO_HIGH;
+                FrequencyDetectorControl.FrequencyMatchFiltered = FREQUENCY_MATCH_TOO_HIGH;
             } else if (FrequencyDetectorControl.MatchLowPassFiltered < FILTER_VALUE_MATCH_LOWER_THRESHOLD) {
-                FrequencyDetectorControl.FrequencyMatchFiltered = FREQUENCY_MATCH_TO_LOW;
+                FrequencyDetectorControl.FrequencyMatchFiltered = FREQUENCY_MATCH_TOO_LOW;
             } else {
                 FrequencyDetectorControl.FrequencyMatchFiltered = FREQUENCY_MATCH;
             }
         }
     }
 }
-
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
 
 void printPeriodLengthArray(Print *aSerial) {
     /*
@@ -589,7 +635,15 @@ void printTriggerValues(Print *aSerial) {
     aSerial->println(FrequencyDetectorControl.TriggerLevel);
 }
 
-void printLegendForArduinoPlotter(Print *aSerial){
+void printFrequencyMatchValues(Print *aSerial) {
+    aSerial->print(F("Frequency min="));
+    aSerial->print(FrequencyDetectorControl.FrequencyMatchLow);
+    aSerial->print(F("Hz max="));
+    aSerial->print(FrequencyDetectorControl.FrequencyMatchHigh);
+    aSerial->println(F("Hz"));
+}
+
+void printLegendForArduinoPlotter(Print *aSerial) {
     printResultLegendForArduinoPlotter(aSerial);
 }
 void printResultLegendForArduinoPlotter(Print *aSerial) {

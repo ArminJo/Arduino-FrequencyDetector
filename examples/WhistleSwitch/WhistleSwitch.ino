@@ -4,7 +4,7 @@
  * Analyzes a microphone signal and toggles an output pin, if the main frequency is for a specified duration in a specified range.
  * For ATtiny85 with 1 MHz - CLOCK_SOURCE=6 must be defined for ATTinyCore
  *
- *  Copyright (C) 2014-2023  Armin Joachimsmeyer
+ *  Copyright (C) 2014-2025  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of Arduino-FrequencyDetector https://github.com/ArminJo/Arduino-FrequencyDetector.
@@ -25,7 +25,7 @@
  *  It uses FrequencyDetector to recognize a whistle pitch which in turn operates a mains relay.
  *  By using different pitches it is possible to control multiple relays in a single room.
  *  If the pitch is lower than the specified frequency the feedback LED blinks slowly, if the pitch is higher it blinks fast.
- *  If the (low pass filtered) match from the FrequencyDetector library holds for MATCH_TO_LONG_MILLIS (1.0 second) after switching output,
+ *  If the (low pass filtered) match from the FrequencyDetector library holds for MATCH_TOO_LONG_MILLIS (1.0 second) after switching output,
  *  the output switches again to go back to the former state.
  *  This can be useful if a machine generated signal (e.g. from a vacuum cleaner) matches the range.
  *
@@ -112,7 +112,7 @@
  * Version 5.1 Adjusted highest range + Debug for ATtiny
  * Version 5. Programming mode feedback while button pressing + fix for advanced programming
  * Version 4. Introduced MIN_NO_DROPOUT_COUNT_BEFORE_ANY_MATCH_DEFAULT to avoid short flashes on random input
- * Version 3. MATCH_TO_LONG_MILLIS 1000 instead of 600
+ * Version 3. MATCH_TOO_LONG_MILLIS 1000 instead of 600
  *
  */
 
@@ -194,8 +194,8 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 //            PB7 10|    |19  PB5 (D 13) LED_FEEDBACK
 // PWM+ (D 5) PD5 11|    |18  PB4 (D 12) READ_SIGNAL_TIMING_OUTPUT_PIN
 // PWM+ (D 6) PD6 12|    |17  PB3 (D 11) RELAY_OUT
-//      (D 7) PD7 13|    |16  PB2 (D 10) LED_HIGHER
-//      (D 8) PB0 14|    |15  PB1 (D 9)  LED_MATCH
+//      (D 7) PD7 13|    |16  PB2 (D 10) LED_PIN_MATCH_TOO_HIGH
+//      (D 8) PB0 14|    |15  PB1 (D 9)  LED_PIN_MATCH
 //                  +----+
 
 /*
@@ -347,13 +347,13 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 /*
  * NANO
  */
-#define LED_SIGNAL_STRENGTH     4
-#define LED_FREQUENCY_LOW       5
-#define LED_FREQUENCY_HIGH      6
-#define LED_PLAUSI_DISTRIBUTION 7
-#define LED_LOWER               8
-#define LED_MATCH               9
-#define LED_HIGHER              10
+#define LED_PIN_SIGNAL_STRENGTH_LOW 4
+#define LED_PIN_FREQUENCY_TOO_LOW   5
+#define LED_PIN_FREQUENCY_TOO_HIGH  6
+#define LED_PIN_PLAUSI_DISTRIBUTION_FAILED  7
+#define LED_PIN_MATCH_TOO_LOW               8
+#define LED_PIN_MATCH                       9
+#define LED_PIN_MATCH_TOO_HIGH              10
 
 #define RELAY_OUT               11
 #define LED_FEEDBACK            LED_BUILTIN
@@ -387,11 +387,11 @@ EasyButton ButtonAtPin3(&handleButtonPress, &handleButtonRelease); // Only one b
 // to avoid short flashes at random signal input
 #define MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH 400
 #define MATCH_MILLIS_NEEDED_DEFAULT (1200 - MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) // Milliseconds of frequency detector indicating successful match before relay toggle
-#define MATCH_TO_LONG_MILLIS        1000    // max milliseconds for match condition true after relay toggled, otherwise switch back to relay state before
+#define MATCH_TOO_LONG_MILLIS        1000    // max milliseconds for match condition true after relay toggled, otherwise switch back to relay state before
 #define RELAY_DEAD_MILLIS           800     // min milliseconds between 2 changes of relay state -> to avoid to fast relay switching
 #define BUTTON_DEBOUNCE_MILLIS      40      // must be smaller than 65 since delay micros has its limitations at 64k!
-#if RELAY_DEAD_MILLIS >= MATCH_TO_LONG_MILLIS
-#error MATCH_TO_LONG_MILLIS must be grater than RELAY_DEAD_MILLIS, otherwise toggling back on long match is rejected
+#if RELAY_DEAD_MILLIS >= MATCH_TOO_LONG_MILLIS
+#error MATCH_TOO_LONG_MILLIS must be grater than RELAY_DEAD_MILLIS, otherwise toggling back on long match is rejected
 #endif
 // Timeout for relay ON
 #define TIMEOUT_RELAY_ON_SIGNAL_MINUTES_MAX (1193 * 60) // -> 49.7 days
@@ -540,7 +540,13 @@ void backToStateDetect() {
 
 void setMillisNeededForValidMatch(uint16_t aPeriodValidNeededMillis) {
     WhistleSwitchControl.MillisNeededForValidMatch = aPeriodValidNeededMillis;
-    WhistleSwitchControl.MatchValidRequired = aPeriodValidNeededMillis / FrequencyDetectorControl.PeriodOfOneReadingMillis;
+#if defined(ADC_PRESCALE_VALUE_IS_NOT_CONSTANT)
+    WhistleSwitchControl.MatchValidRequired = aPeriodValidNeededMillis / FrequencyDetectorControl.PeriodOfOneReadSignalMillis;
+#else
+    WhistleSwitchControl.MatchValidRequired = aPeriodValidNeededMillis
+            / (((MICROS_PER_SAMPLE * NUMBER_OF_SAMPLES_USED_FOR_FREQUENCY_DETECTION)
+                    + (CLOCKS_FOR_READ_SIGNAL_NO_LOOP / (F_CPU / 1000000))) / 1000);
+#endif
 
 #if defined(TRACE)
     Serial.print("MatchValidNeeded=");
@@ -644,7 +650,7 @@ void signalRangeIndexByLed() {
  * 900 - 999 -> 9x
  */
 void signalAverageLevelByLed() {
-    for (uint8_t i = 0; i < FrequencyDetectorControl.AverageLevel; i+=100) {
+    for (uint8_t i = 0; i < FrequencyDetectorControl.AverageLevel; i += 100) {
         digitalWriteFast(LED_FEEDBACK, HIGH);
         delay(TIMING_FREQUENCY_LOWER_MILLIS * 4);
         digitalWriteFast(LED_FEEDBACK, LOW);
@@ -730,7 +736,7 @@ void toggleRelay() {
 void processMatchState() {
     if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_INVALID) {
         WhistleSwitchControl.MatchValidCount = 0;
-    } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_TO_HIGH) {
+    } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_TOO_HIGH) {
         // HIGHER -> set blink frequency according to gap between real and maximum-match pitch
         int16_t tLedBlinkMillis = TIMING_FREQUENCY_HIGHER_MILLIS
                 - ((FrequencyDetectorControl.FrequencyFiltered - FrequencyDetectorControl.FrequencyMatchHigh) / 16);
@@ -743,7 +749,7 @@ void processMatchState() {
 #endif
         setFeedbackLedBlinkState(tLedBlinkMillis, -1);
         WhistleSwitchControl.MatchValidCount--;
-    } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_TO_LOW) {
+    } else if (FrequencyDetectorControl.FrequencyMatchFiltered == FREQUENCY_MATCH_TOO_LOW) {
         // LOWER -> set blink frequency according to gap between real and minimal-match pitch
         uint16_t tLedBlinkMillis = TIMING_FREQUENCY_LOWER_MILLIS
                 + ((FrequencyDetectorControl.FrequencyMatchLow - FrequencyDetectorControl.FrequencyFiltered) / 2);
@@ -783,7 +789,7 @@ void processMatchState() {
             WhistleSwitchControl.sMatchTooLongDetected = false;
 
         } else if (!WhistleSwitchControl.sMatchTooLongDetected
-                && millis() - WhistleSwitchControl.MillisAtLastRelayChange > MATCH_TO_LONG_MILLIS) {
+                && millis() - WhistleSwitchControl.MillisAtLastRelayChange > MATCH_TOO_LONG_MILLIS) {
             /*
              * match lasted too long, reset relay to previous state only once
              */
@@ -809,7 +815,11 @@ void printSignalInfos() {
     Serial.print(F(" Delta="));
     Serial.print(FrequencyDetectorControl.SignalDelta);
     Serial.print(F(" F="));
-    Serial.println(FrequencyDetectorControl.FrequencyRaw);
+    Serial.print(FrequencyDetectorControl.FrequencyRaw);
+    if (FrequencyDetectorControl.FrequencyRaw > SIGNAL_MAX_ERROR_CODE) {
+        Serial.print(F("Hz"));
+    }
+    Serial.println();
 }
 
 void printInfos() {
@@ -909,17 +919,19 @@ void setup() {
 
 #else // defined(__AVR_ATtiny85__)
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/ \
+    || defined(SERIALUSB_PID)  || defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #  endif
 
-    pinMode(LED_LOWER, OUTPUT);
-    pinMode(LED_MATCH, OUTPUT);
-    pinMode(LED_HIGHER, OUTPUT);
-    pinMode(LED_FREQUENCY_LOW, OUTPUT);
-    pinMode(LED_FREQUENCY_HIGH, OUTPUT);
-    pinMode(LED_PLAUSI_DISTRIBUTION, OUTPUT);
-    pinMode(LED_SIGNAL_STRENGTH, OUTPUT);
+    pinMode(LED_PIN_MATCH_TOO_LOW, OUTPUT);
+    pinMode(LED_PIN_MATCH, OUTPUT);
+    pinMode(LED_PIN_MATCH_TOO_HIGH, OUTPUT);
+    pinMode(LED_PIN_FREQUENCY_TOO_LOW, OUTPUT);
+    pinMode(LED_PIN_FREQUENCY_TOO_HIGH, OUTPUT);
+    pinMode(LED_PIN_PLAUSI_DISTRIBUTION_FAILED, OUTPUT);
+    pinMode(LED_PIN_SIGNAL_STRENGTH_LOW, OUTPUT);
+
 #endif // defined(__AVR_ATtiny85__)
 
     pinModeFast(LED_FEEDBACK, OUTPUT);
@@ -931,18 +943,26 @@ void setup() {
     Serial.print(tMCUSRStored, HEX);
     Serial.print(F(" ADC channel="));
     Serial.print(ADC_CHANNEL);
-#if defined(USE_ATTINY85_20X_AMPLIFICATION)
+#  if defined(USE_ATTINY85_20X_AMPLIFICATION)
     Serial.print(F(", 20x"));
-#else
+#  else
     Serial.print(F(", 1x"));
-#endif
+#  endif
     Serial.print(F(" amplification, relay pin=" STR(RELAY_OUT) ", LED pin=" STR(LED_FEEDBACK) ", button pin=" STR(INT1_PIN)));
-#if defined(DEBUG_PIN)
+#  if defined(DEBUG_PIN)
     Serial.print(F(", TX pin=" STR(DEBUG_PIN)));
-#endif
+#  endif
     Serial.println();
 #  if defined(__AVR_ATtiny85__)
     printBODLevel();
+#  else
+    Serial.println(
+            F(
+                    "LED for signal strength too low at pin " STR(LED_PIN_SIGNAL_STRENGTH_LOW) ", for frequency too low at pin " STR(LED_PIN_FREQUENCY_TOO_LOW)", for frequency too high at pin " STR(LED_PIN_FREQUENCY_TOO_HIGH) ", for distribution plausi fail at pin " STR(LED_PIN_PLAUSI_DISTRIBUTION_FAILED)));
+    Serial.println(
+            F(
+                    "LED for match too low at pin " STR(LED_PIN_MATCH_TOO_LOW) ", for signal match OK at pin " STR(LED_PIN_MATCH) ", for match too high at pin " STR(LED_PIN_MATCH_TOO_HIGH)));
+
 #  endif
 #endif
 
@@ -958,18 +978,15 @@ void setup() {
     eepromReadParameter();
 
 #if defined(INFO)
-    Serial.print(F("Current free Heap / Stack[bytes]="));
-    Serial.println(getCurrentFreeHeapOrStack());
+    // do not use printCurrentAvailableStackSize(&Serial) because we may use the ATtinySerialOut as Serial
+    Serial.print(F("Currently available Stack[bytes]="));
+    Serial.println(getCurrentAvailableStackSize());
 
     Serial.print(F("Tone detection no dropout before display=" STR(MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH) "ms, before relay="));
     Serial.print(MATCH_MILLIS_NEEDED_DEFAULT + MIN_NO_DROPOUT_MILLIS_BEFORE_ANY_MATCH);
     Serial.println(F("ms"));
 
-    Serial.print(F("Frequency min="));
-    Serial.print(FrequencyDetectorControl.FrequencyMatchLow);
-    Serial.print(F("Hz max="));
-    Serial.print(FrequencyDetectorControl.FrequencyMatchHigh);
-    Serial.println(F("Hz"));
+    printFrequencyMatchValues(&Serial);
 #endif
 
     readSignal(); // initialize values
@@ -980,7 +997,8 @@ void setup() {
      * otherwise frequency range index and signal timeout index
      */
     if (ButtonAtPin3.readButtonState()) {
-        while(ButtonAtPin3.readButtonState()); // wait for button to be released
+        while (ButtonAtPin3.readButtonState())
+            ; // wait for button to be released
         delay(500); // wait a half second for DC Level at button pin to stabilize
         readSignal(); // Read values for average
         printSignalInfos();
@@ -1201,30 +1219,30 @@ void detectFrequency() {
     /*
      * Show state on the LEDS
      */
-    digitalWriteFast(LED_SIGNAL_STRENGTH, LOW);
-    digitalWriteFast(LED_LOWER, LOW);
-    digitalWriteFast(LED_MATCH, LOW);
-    digitalWriteFast(LED_HIGHER, LOW);
-    digitalWriteFast(LED_FREQUENCY_LOW, LOW);
-    digitalWriteFast(LED_FREQUENCY_HIGH, LOW);
-    digitalWriteFast(LED_PLAUSI_DISTRIBUTION, LOW);
+    digitalWriteFast(LED_PIN_SIGNAL_STRENGTH_LOW, LOW);
+    digitalWriteFast(LED_PIN_MATCH_TOO_LOW, LOW);
+    digitalWriteFast(LED_PIN_MATCH, LOW);
+    digitalWriteFast(LED_PIN_MATCH_TOO_HIGH, LOW);
+    digitalWriteFast(LED_PIN_FREQUENCY_TOO_LOW, LOW);
+    digitalWriteFast(LED_PIN_FREQUENCY_TOO_HIGH, LOW);
+    digitalWriteFast(LED_PIN_PLAUSI_DISTRIBUTION_FAILED, LOW);
 
     if (tFrequency <= SIGNAL_STRENGTH_LOW) {
-        digitalWriteFast(LED_SIGNAL_STRENGTH, HIGH);
+        digitalWriteFast(LED_PIN_SIGNAL_STRENGTH_LOW, HIGH);
     } else if (tFrequency == SIGNAL_FREQUENCY_TOO_LOW) {
-        digitalWriteFast(LED_FREQUENCY_LOW, HIGH);
+        digitalWriteFast(LED_PIN_FREQUENCY_TOO_LOW, HIGH);
     } else if (tFrequency == SIGNAL_FREQUENCY_TOO_HIGH) {
-        digitalWriteFast(LED_FREQUENCY_HIGH, HIGH);
+        digitalWriteFast(LED_PIN_FREQUENCY_TOO_HIGH, HIGH);
     } else if (tFrequency == SIGNAL_DISTRIBUTION_PLAUSI_FAILED) {
-        digitalWriteFast(LED_PLAUSI_DISTRIBUTION, HIGH);
+        digitalWriteFast(LED_PIN_PLAUSI_DISTRIBUTION_FAILED, HIGH);
     }
 
-    if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_TO_LOW) {
-        digitalWriteFast(LED_LOWER, HIGH);
-    } else if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_TO_HIGH) {
-        digitalWriteFast(LED_HIGHER, HIGH);
+    if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_TOO_LOW) {
+        digitalWriteFast(LED_PIN_MATCH_TOO_LOW, HIGH);
+    } else if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH_TOO_HIGH) {
+        digitalWriteFast(LED_PIN_MATCH_TOO_HIGH, HIGH);
     } else if (FrequencyDetectorControl.FrequencyMatchDirect == FREQUENCY_MATCH) {
-        digitalWriteFast(LED_MATCH, HIGH);
+        digitalWriteFast(LED_PIN_MATCH, HIGH);
     }
 #endif
 
@@ -1471,8 +1489,8 @@ void doReset() {
     Serial.flush();
 #  endif
     // Jump to 0x0000
-    void (*ptrToReset)() = 0;// pointer to reset
-    (*ptrToReset)();// reset!
+    void (*ptrToReset)() = 0; // pointer to reset
+    (*ptrToReset)(); // reset!
 #else // defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__)
     // second push happened before timeout -> perform reset (this does not work with arduino bootloader)
     wdt_enable(WDTO_500MS);

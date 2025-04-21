@@ -51,16 +51,17 @@ unsigned long sketchSize(void);
 
 void Information(void);
 
-#if defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
+void printMCUSR(uint8_t aMCUSRContent);
+
 void printBODLevel(uint8_t aHighFuseBits);
 void printBODLevel();
+
+#if defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 void printFuses(void);
-void printMCUSR(uint8_t aMCUSRContent);
 void printBODSFlagExistence();
 #endif //  defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 
-#if !defined(__AVR_ATmega32U4__)
-#  if defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
+#if defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 /*
  * Short version using printHex and saving Flash
  */
@@ -69,22 +70,21 @@ void Timer0RegisterDump(void);
 void Timer1RegisterDump(void);
 void TimerRegisterDump(void);
 
-#    if ! defined(ARDUINO_AVR_DIGISPARKPRO)
+#  if ! defined(ARDUINO_AVR_DIGISPARKPRO)
 void ADCChannelDump(void);
-#    endif
+#  endif
 
-#  else // defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
+#elif !defined(__AVR_ATmega32U4__) // defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny167__) || defined(__AVR_ATtiny87__)
 void Timer0RegisterDump(void);
 #    if defined(TCCR1A)
 void Timer1RegisterDump(void) ;
-#    endif
+#  endif
 
 #    if defined(TCCR2A)
 void Timer2RegisterDump(void);
-#    endif
+#  endif
 
 void TimerRegisterDump(void);
-#  endif
-#endif // !defined(__AVR_ATmega32U4__)
+#endif
 
 #endif // _SHOW_INFO_H

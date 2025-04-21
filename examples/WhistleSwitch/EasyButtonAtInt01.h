@@ -1,5 +1,5 @@
 /*
- * EasyButtonAtInt01.hpp
+ * EasyButtonAtInt01.h
  *
  *  Arduino library for handling push buttons connected between ground and INT0 and / or INT1 pin.
  *  INT0 and INT1 are connected to Pin 2 / 3 on most Arduinos (ATmega328), to PB6 / PA3 on ATtiny167 and on ATtinyX5 we have only INT0 at PB2.
@@ -169,6 +169,16 @@
 #define INT1_IN_PORT  (PINB)
 #define INT1_OUT_PORT (PORTB)
 #  endif // defined(USE_BUTTON_1)
+
+#elif defined(USE_INT2_FOR_BUTTON_0) // Hack for ATmega 644
+#  if defined(USE_BUTTON_1)
+#error If USE_INT2_FOR_BUTTON_0 is defined, only USE_BUTTON_0 is allowed, USE_BUTTON_1 must be disabled!
+#  endif
+// dirty hack, but INT0 and INT1 are occupied by second USART
+#define INT0_PIN 2 // PB2 / INT2
+#define INT0_DDR_PORT (DDRB)
+#define INT0_IN_PORT  (PINB)
+#define INT0_OUT_PORT (PORTB)
 
 #elif defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
 // from here we use only ATtinyCore / PAx / PBx numbers, since on Digispark board and core library there is used a strange enumeration of pins
@@ -344,9 +354,9 @@ public:
 #endif
 
     volatile bool isButtonAtINT0;
-    void (*ButtonPressCallback)(bool aButtonToggleState) = NULL; // If not null, is called on every button press with ButtonToggleState as parameter
+    void (*ButtonPressCallback)(bool aButtonToggleState) = nullptr; // If not null, is called on every button press with ButtonToggleState as parameter
 #if !defined(NO_BUTTON_RELEASE_CALLBACK)
-    void (*ButtonReleaseCallback)(bool aButtonToggleState, uint16_t aButtonPressDurationMillis) = NULL; // If not null, is called on every button release with ButtonPressDurationMillis as parameter
+    void (*ButtonReleaseCallback)(bool aButtonToggleState, uint16_t aButtonPressDurationMillis) = nullptr; // If not null, is called on every button release with ButtonPressDurationMillis as parameter
 #endif
 
 #if defined(USE_BUTTON_0)
@@ -383,6 +393,7 @@ void __attribute__ ((weak)) handleINT1Interrupt();
 
 /*  Version 3.4.1 - 12/2023
  *  - Avoid wrong double press detection if calling checkForDoublePress() after release of button.
+ *  - Hack for ATmega 644.
  *
  *  Version 3.4.0 - 10/2023
  *  - Added NO_INITIALIZE_IN_CONSTRUCTOR macro to enable late initializing.

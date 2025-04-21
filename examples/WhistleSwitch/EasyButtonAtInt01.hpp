@@ -221,7 +221,17 @@ void EasyButton::init(bool aIsButtonAtINT0) {
 #  endif
     sPointerToButton0ForISR = this;
 #  if defined(USE_ATTACH_INTERRUPT)
+#    if defined(ARDUINO_ARCH_SAMD) // see https://www.arduino.cc/reference/tr/language/functions/external-interrupts/attachinterrupt/ paragraph: Syntax
+    attachInterrupt(INT0_PIN, &handleINT1Interrupt, CHANGE);
+#    else
     attachInterrupt(digitalPinToInterrupt(INT0_PIN), &handleINT0Interrupt, CHANGE);
+#    endif
+
+#  elif defined(USE_INT2_FOR_BUTTON_0)
+    EICRA |= _BV(ISC20);  // interrupt on any logical change
+    EIFR |= _BV(INTF2);// clear interrupt bit
+    EIMSK |= _BV(INT2);// enable interrupt on next change
+
 #  else
     EICRA |= _BV(ISC00);  // interrupt on any logical change
     EIFR |= _BV(INTF0);// clear interrupt bit
@@ -255,7 +265,11 @@ void EasyButton::init(bool aIsButtonAtINT0) {
     PCMSK2 = digitalPinToBitMask(INT1_PIN);
 #  else
 #    if defined(USE_ATTACH_INTERRUPT)
+#      if defined(ARDUINO_ARCH_SAMD) // see https://www.arduino.cc/reference/tr/language/functions/external-interrupts/attachinterrupt/ paragraph: Syntax
+    attachInterrupt(INT1_PIN, &handleINT1Interrupt, CHANGE);
+#      else
     attachInterrupt(digitalPinToInterrupt(INT1_PIN), &handleINT1Interrupt, CHANGE);
+#      endif
 #    else
     EICRA |= _BV(ISC10);  // interrupt on any logical change
     EIFR |= _BV(INTF1);     // clear interrupt bit
@@ -277,7 +291,11 @@ void EasyButton::init(bool aIsButtonAtINT0) {
 #  endif
         sPointerToButton0ForISR = this;
 #  if defined(USE_ATTACH_INTERRUPT)
+#    if defined(ARDUINO_ARCH_SAMD) // see https://www.arduino.cc/reference/tr/language/functions/external-interrupts/attachinterrupt/ paragraph: Syntax
+        attachInterrupt(INT1_PIN, &handleINT1Interrupt, CHANGE);
+#    else
         attachInterrupt(digitalPinToInterrupt(INT0_PIN), &handleINT0Interrupt, CHANGE);
+#    endif
 #  else
         EICRA |= _BV(ISC00);    // interrupt on any logical change
         EIFR |= _BV(INTF0);     // clear interrupt bit
@@ -325,7 +343,11 @@ void EasyButton::init(bool aIsButtonAtINT0) {
         PCMSK1 = digitalPinToBitMask(INT1_PIN);
 #  else
 #    if defined(USE_ATTACH_INTERRUPT)
+#      if defined(ARDUINO_ARCH_SAMD) // see https://www.arduino.cc/reference/tr/language/functions/external-interrupts/attachinterrupt/ paragraph: Syntax
+        attachInterrupt(INT1_PIN, &handleINT1Interrupt, CHANGE);
+#      else
         attachInterrupt(digitalPinToInterrupt(INT1_PIN), &handleINT1Interrupt, CHANGE);
+#      endif
 #    else
         // ATmega328 here
         EICRA |= _BV(ISC10);  // interrupt on any logical change
@@ -450,14 +472,15 @@ uint16_t EasyButton::updateButtonPressDuration() {
  */
 uint8_t EasyButton::checkForLongPress(uint16_t aLongPressThresholdMillis) {
     uint8_t tRetvale = EASY_BUTTON_LONG_PRESS_ABORT;
-    if (readDebouncedButtonState()) {
+    // noInterrupts() is required, since otherwise we may get wrong results if interrupted during processing by button ISR
+    noInterrupts();
+    if (readDebouncedButtonState() != BUTTON_IS_INACTIVE) {
         // Button still active -> update current ButtonPressDurationMillis
-        // noInterrupts() is required, since otherwise we may get wrong results if interrupted during load of long value by button ISR
-        noInterrupts();
+
         ButtonPressDurationMillis = millis() - ButtonLastChangeMillis;
-        interrupts();
         tRetvale = EASY_BUTTON_LONG_PRESS_STILL_POSSIBLE; // if not detected, you may try again
     }
+    interrupts();
     if (ButtonPressDurationMillis >= aLongPressThresholdMillis) {
         // long press detected
         return EASY_BUTTON_LONG_PRESS_DETECTED;
@@ -639,7 +662,7 @@ void EasyButton::handleINT01Interrupts() {
                 digitalWriteFast(BUTTON_LED_FEEDBACK_PIN, HIGH);
 #endif
                 ButtonToggleState = !ButtonToggleState;
-                if (ButtonPressCallback != NULL) {
+                if (ButtonPressCallback != nullptr) {
                     /*
                      * Call callback function.
                      * interrupts() is required if callback function needs more time to allow millis() to proceed.
@@ -670,7 +693,7 @@ void EasyButton::handleINT01Interrupts() {
                 ButtonPressDurationMillis = tDeltaMillis;
                 ButtonReleaseMillis = tMillis;
 #if !defined(NO_BUTTON_RELEASE_CALLBACK)
-                if (ButtonReleaseCallback != NULL) {
+                if (ButtonReleaseCallback != nullptr) {
                     /*
                      * Call callback function.
                      * interrupts() is required if callback function needs more time to allow millis() to proceed.
@@ -721,8 +744,8 @@ void __attribute__ ((weak)) handleINT1Interrupt() {
 // ISR for PIN PD2
 // Cannot make the vector itself weak, since the vector table is already filled by weak vectors resulting in ignoring my weak one:-(
 //ISR(INT0_vect, __attribute__ ((weak))) {
-#  if defined(USE_BUTTON_0)
-ISR(INT0_vect) {
+#  if defined(USE_INT2_FOR_BUTTON_0)
+ISR(INT2_vect) {
 #    if defined(MEASURE_EASY_BUTTON_INTERRUPT_TIMING)
     digitalWriteFast(INTERRUPT_TIMING_OUTPUT_PIN, HIGH);
 #    endif
@@ -731,6 +754,18 @@ ISR(INT0_vect) {
     digitalWriteFast(INTERRUPT_TIMING_OUTPUT_PIN, LOW);
 #    endif
 }
+#  else
+#    if defined(USE_BUTTON_0)
+ISR(INT0_vect) {
+#      if defined(MEASURE_EASY_BUTTON_INTERRUPT_TIMING)
+    digitalWriteFast(INTERRUPT_TIMING_OUTPUT_PIN, HIGH);
+#      endif
+    handleINT0Interrupt();
+#      if defined(MEASURE_EASY_BUTTON_INTERRUPT_TIMING)
+    digitalWriteFast(INTERRUPT_TIMING_OUTPUT_PIN, LOW);
+#      endif
+}
+#    endif
 #  endif
 
 #  if defined(USE_BUTTON_1)
