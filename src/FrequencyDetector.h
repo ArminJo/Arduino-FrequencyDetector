@@ -26,9 +26,11 @@
 #ifndef _FREQUENCY_DETECTOR_H
 #define _FREQUENCY_DETECTOR_H
 
-#define VERSION_FREQUENCY_DETECTOR "2.0.1"
+#define VERSION_FREQUENCY_DETECTOR "2.0.2"
 #define VERSION_FREQUENCY_DETECTOR_MAJOR 2
-#define VERSION_FREQUENCY_DETECTOR_MINOR 1
+#define VERSION_FREQUENCY_DETECTOR_MINOR 0
+#define VERSION_FREQUENCY_DETECTOR_PATCH 2
+
 // The change log is at the bottom of the file
 
 /*
@@ -335,7 +337,10 @@ void printInputSignalValuesForArduinoPlotter(Print *aSerial);
 #endif
 
 /*
- * Version 2.1.0 - 5/2023
+ * Version 2.0.2 - 4/2025
+ * - Bug fix for overflow at FREQUENCY_RANGE_HIGH.
+ *
+ * Version 2.0.1 - 5/2023
  * - Renamed printSignalValuesForArduinoPlotter() to  printInputSignalValuesForArduinoPlotter(),
  *     printLegendForArduinoPlotter() to printResultLegendForArduinoPlotter()
  *     and printDataForArduinoPlotter() to printResultDataForArduinoPlotter().

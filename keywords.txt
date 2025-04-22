@@ -19,6 +19,22 @@ readSignal	KEYWORD2
 doPlausi	KEYWORD2
 computeDirectAndFilteredMatch	KEYWORD2
 
+setFrequencyDetectorControlDefaults	KEYWORD2
+setFrequencyDropoutDefaults	KEYWORD2
+setFrequencyDetectorReadingDefaults	KEYWORD2
+setFrequencyDetectorReadingValues	KEYWORD2
+setFrequencyDetectorReadingPrescaleValue	KEYWORD2
+setFrequencyDetectorMatchValues	KEYWORD2
+setFrequencyDetectorDropoutCounts	KEYWORD2
+setFrequencyDetectorDropoutTimes	KEYWORD2
+
+printTriggerValues	KEYWORD2
+printFrequencyMatchValues	KEYWORD2
+printPeriodLengthArray	KEYWORD2
+printResultLegendForArduinoPlotter	KEYWORD2
+printResultDataForArduinoPlotter	KEYWORD2
+printInputSignalValuesForArduinoPlotter	KEYWORD2
+
 #######################################
 # Constants (LITERAL1)
 #######################################

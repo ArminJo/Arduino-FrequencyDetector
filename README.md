@@ -49,9 +49,9 @@ The value of millis() is adjusted after reading.<br/>
 The alternative to disabling the interrupt is getting partially invalid results!
 
 There are 3 detection ranges available:
-- `FREQUENCY_RANGE_HIGH` -> 13 &micro;s/sample -> 300 to **9612** Hz with 1024 samples and 600 to 9612 Hz with 512 samples.
-- `FREQUENCY_RANGE_DEFAULT` -> 52 &micro;s/sample -> **75 to 2403 Hz with 1024 samples** and 150 to 2403 Hz with 512 samples.
-- `FREQUENCY_RANGE_LOW` -> 104 &micro;s/sample -> **38** to 1202 Hz with 1024 samples and 75 to 1202 Hz with 512 samples.
+- `FREQUENCY_RANGE_HIGH` -> 13 &micro;s/sample -> **300 to 9612** Hz with 1024 samples and **600 to 9612** Hz with 512 samples.
+- `FREQUENCY_RANGE_DEFAULT` -> 52 &micro;s/sample -> **75 to 2403 Hz with 1024 samples** and **150 to 2403** Hz with 512 samples.
+- `FREQUENCY_RANGE_LOW` -> 104 &micro;s/sample -> **38 to 1202** Hz with 1024 samples and **75 to 1202** Hz with 512 samples.
 
 ### `readSignal()` is the ADC read routine, which reads 1024 samples (512 for ATtinies) and computes the following values:
   1. Frequency of signal `uint16_t FrequencyRaw`
@@ -71,6 +71,14 @@ and also low pass filters the result for smooth transitions between the 3 match 
 
 <br/>
 
+# Convenience functions
+There are a lot of extra functions available to make using this library easier.
+- Functions to set parameters.
+- Functions for printing the internal data
+- Functions for printing data for the Arduino Plotter from Arduino 1.8.19.
+
+<br/>
+
 # Compile options / macros for this library
 To customize the library to different requirements, there are some compile options / macros available.<br/>
 These macros must be defined in your program **before** the line `#include "FrequencyDetector.hpp"` to take effect.<br/>
@@ -78,7 +86,7 @@ Modify them by enabling / disabling them, or change the values if applicable.
 
 | Name | Default value | Description |
 |-|-:|-|
-| `PRINT_INPUT_SIGNAL_TO_PLOTTER` | disabled | Signal input data is stored and can be printed together with trigger levels using `printInputSignalValuesForArduinoPlotter()` like in the *SimpleFrequencyDetector* example to implement a simple digital oscilloscope using the Arduino 1.x Serial Plotter. |
+| `PRINT_INPUT_SIGNAL_TO_PLOTTER` | disabled | Signal input data is stored and can be printed together with trigger levels using `printInputSignalValuesForArduinoPlotter()` like in the *SimpleFrequencyDetector* example to implement a simple digital oscilloscope using the Arduino 1.8.19 Serial Plotter. |
 | `ADC_PRESCALE_VALUE_IS_NOT_CONSTANT` | disabled | Enable if you do not use the constant `PRESCALE_VALUE_DEFAULT` for parameter ADCPrescalerValue in the call of `setFrequencyDetectorReadingValues()` or `setFrequencyDetectorReadingPrescaleValue()`. |
 
 ### Arduino Plotter output of SimpleFrequencyDetector example with PRINT_INPUT_SIGNAL_TO_PLOTTER enabled
@@ -104,7 +112,8 @@ It prints the detected frequency as well as plausibility errors.
 For frequency below 500 Hz it might be good to change `FREQUENCY_RANGE_DEFAULT` to `FREQUENCY_RANGE_LOW`.
 
 By enabling `PRINT_INPUT_SIGNAL_TO_PLOTTER` you can convert the example to a simple DSO.<br/>
-By enabling `PRINT_RESULTS_TO_SERIAL_PLOTTER` you can watch the [generated output](https://github.com/ArminJo/Arduino-FrequencyDetector#arduino-plotter-output-of-whistleswitch-in-action) of the library.
+By enabling `PRINT_RESULTS_TO_SERIAL_PLOTTER` you can watch the [generated output](https://github.com/ArminJo/Arduino-FrequencyDetector#arduino-plotter-output-of-whistleswitch-in-action) of the library.<br/>
+For both. the output must be displayed in the Arduino Plotter of Arduino 1.8.19.
 
 SimpleFrequencyDetector on breadboard with MAX9814 Module
 ![SimpleFrequencyDetector on breadboard with MAX9814 Module](https://github.com/ArminJo/Arduino-FrequencyDetector/blob/master/extras/SimpleFrequencyDetector_MAX9814.jpg)
@@ -115,12 +124,12 @@ YouTube Demonstration of SimpleFrequencyDetector with MAX9812 Module
 <br/>
 
 # WhistleSwitch example
-The WhistleSwitch example analyzes a microphone signal (I use a MAX9814 module from Adafruit) and toggles an output pin, if the main frequency is for a specified duration in a specified range.
-It works as a frequency detector for a whistle pitch which operates a mains relay. By using different pitches it is possible to control multiple relays in a single room.<br/>
-If the pitch is lower than the specified frequency, the feedback LED blinks slowly, if the pitch is higher it blinks fast.<br/>
-If the (low pass filtered) match from the FrequencyDetector library holds for `MATCH_TO_LONG_MILLIS` (1 second) after switching output,
-the output switches again, to go back to the former state.
-This can be useful if a machine generated signal (e.g. from a vacuum cleaner) matches the range.<br/>
+The WhistleSwitch example analyzes a microphone signal (I'm using a MAX9814 module from Adafruit) and **toggles an output pin**, when the main **frequency is within a specified range for a specified time**.
+It works as a frequency detector for a whistle pitch that drives a power relay. By using different pitches, it is possible to control multiple relays in a single room.<br/>
+If the pitch is lower than the specified frequency, the feedback LED flashes slowly, if the pitch is higher it flashes fast.<br/>
+If the (low pass filtered) match from the FrequencyDetector library holds for `MATCH_TO_LONG_MILLIS` (1 second) after switching the output,
+the output switches again, to return to the previous state.
+This can be useful if a machine-generated signal (e.g. from a vacuum cleaner) matches the range.<br/>
 **This example is mainly created to run on an ATtiny85 at 1 MHz, but will work also on a plain Arduino.**
 
 <br/>
@@ -148,8 +157,8 @@ the following pitch ranges are predefined for easy selection:
 
 ## SELECTING the RANGE
 Selecting is started by a long press of the button.
-After `BUTTON_PUSH_ENTER_PROGRAM_SIMPLE_MILLIS` (1.5 seconds), the feedback LED blinks once for signaling simple programming mode.
-After `BUTTON_PUSH_ENTER_PROGRAM_ADVANCED_MILLIS` (4 seconds), the feedback LED blinks twice for signaling advanced programming mode.
+After `BUTTON_PUSH_ENTER_PROGRAM_SIMPLE_MILLIS` (1.5 seconds), the feedback LED flashes once for signaling simple programming mode.
+After `BUTTON_PUSH_ENTER_PROGRAM_ADVANCED_MILLIS` (4 seconds), the feedback LED flashes twice for signaling advanced programming mode.
 After releasing the button, the selected programming mode is entered.
 
 ### SIMPLE PROGRAMMING MODE
@@ -171,7 +180,7 @@ and the effective duration is echoed by the feedback LED.
 ## TIMEOUT
 After a timeout of `TIMEOUT_RELAY_ON_SIGNAL_MINUTES`_(1 to 3) (2, 4 or 8 hours) the relay goes OFF for 1 second.
 In the next `TIMEOUT_RELAY_SIGNAL_TO_OFF_MINUTES` (3) minutes you must then press the button or whistle the pitch to cancel the timeout, otherwise the relay will switch OFF afterwards.
-Cancellation of timeout is acknowledged by the LED blinking 5 times for 1 second on and off. Timeout can be switched on by selecting the dummy ranges 11 to 13 and off by selecting the dummy range 10.
+Cancellation of timeout is acknowledged by the LED flashing 5 times for 1 second on and off. Timeout can be switched on by selecting the dummy ranges 11 to 13 and off by selecting the dummy range 10.
 The setting is stored in EEPROM. Default is `TIMEOUT_RELAY_ON_SIGNAL_MINUTES_3` (8 hours).
 
 ## RESET
@@ -266,7 +275,10 @@ External circuit for 20x amplification configuration on a Digispark board.
 <br/>
 
 # Revision History
-### Version 2.1.0
+### Version 2.0.2
+- Bug fix for overflow at `FREQUENCY_RANGE_HIGH`.
+
+### Version 2.0.1
 - Updated SimpleFrequencyDetector example.
 - Renamed `printSignalValuesForArduinoPlotter()` to  `printInputSignalValuesForArduinoPlotter()`,
      `printLegendForArduinoPlotter()` to `printResultLegendForArduinoPlotter()`
