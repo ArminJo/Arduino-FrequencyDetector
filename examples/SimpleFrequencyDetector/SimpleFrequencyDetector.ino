@@ -80,7 +80,7 @@
 #endif
 
 #if defined(INFO)
-#include "AVRUtils.h" // for printRAMInfo()
+#include "AVRUtils.h" // for printRAMAndStackInfo()
 #endif
 
 void setup() {

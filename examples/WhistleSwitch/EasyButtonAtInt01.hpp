@@ -73,12 +73,6 @@
  *
  */
 
-#if defined(TRACE)
-#define LOCAL_TRACE
-#else
-//#define LOCAL_TRACE // This enables trace output only for this file
-#endif
-
 // For external measurement of code timing
 //#define MEASURE_EASY_BUTTON_INTERRUPT_TIMING
 #if defined(MEASURE_EASY_BUTTON_INTERRUPT_TIMING) || defined(BUTTON_LED_FEEDBACK)
@@ -95,8 +89,15 @@ EasyButton *EasyButton::sPointerToButton1ForISR;
 #error One of USE_BUTTON_0 or USE_BUTTON_1 must be defined
 #endif
 
+// After all includes
+#if defined(TRACE)
+#define LOCAL_TRACE
+#else
+//#define LOCAL_TRACE // This enables trace output only for this file
+#endif
+
 // The eclipse formatter has problems with // comments in undefined code blocks
-// !!! Must be without comment and closed by @formatter:on
+// !!! Must be without trailing comment and closed by @formatter:on
 // @formatter:off
 
 /*
@@ -197,6 +198,9 @@ init(BUTTON_AT_INT1_OR_PCINT); // 2. button
 }
 #endif // NO_BUTTON_RELEASE_CALLBACK
 
+#if !defined(CHANGE)
+#define CHANGE 1 // For those crappy cores which did not define it. Is used as 3. Parameter for attachInterrupt() below.
+#endif
 /*
  * Sets pin mode to INPUT_PULLUP if not defined(BUTTON_IS_ACTIVE_HIGH) and enables INT0 Interrupt on any logical change.
  * @param aIsButtonAtINT0   true if this button is connected to INT0 i.e. is button 0

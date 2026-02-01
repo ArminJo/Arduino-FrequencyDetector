@@ -55,7 +55,7 @@ jobs:
             sketches-exclude: WhistleSwitch # 101%
 
           - arduino-boards-fqbn: ATTinyCore:avr:attinyx5:chip=85,clock=1internal
-            platform-url: http://drazzy.com/package_drazzy.com_index.json
+            platform-url: https://felias-fogg.github.io/downloads/package_debug_enabled_index.json
 
       # Do not cancel all jobs / architectures if one job fails
       fail-fast: false

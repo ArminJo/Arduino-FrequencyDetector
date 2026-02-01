@@ -147,7 +147,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 #define PREDEFINED_RANGES_START_ARRAY_SIZE  (sizeof(predefinedRangesStart)/sizeof(predefinedRangesStart[0]))
 
 #if defined(INFO)
-#include "AVRUtils.h"   // for printRAMInfo()
+#include "AVRUtils.h"   // for getCurrentAvailableStackSize()
 #include "ShowInfo.h"   // printBODLevel()
 #endif
 
@@ -226,51 +226,56 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
  * External circuit for 1x amplification configuration on a Digispark board.
  * Input DC level is 550 mV, which is half of the internal 1.1 V reference
  *
- *          + CPU 5V                          - * Schottky-diode
- *          o-------------------------- o-----|<|--o-- USB 5V
- *          |                           |    -     |
- *          _                           o /        | <-- Modification to save power and to be compatible with 20x amplification
- *         | |              Push button  /=|       |
- *    470k | |                          /          |
- *         |_|                          o          |
- *     1n   |    ____ 550 mV DC level   |          |
- *  >---||--o---|____|--O PB4           _          _
- *   500Hz  |    10k                   | |        | |
- *   High   _                      47k | |        | | * 1k5 pullup
- *   Pass  | |                         |_|        |_|
- *    100k | |                          |          |
- *         |_|                          |          |
- *          |                           |    ____  |
- *          |            PB3 O----------o---|____|-o
- *          |                           |  * 68/22 |
- *          |                           _         __
- *          |                          | |        /\` * 3V6 Z-diode
- *          |                     100k | |        --
- *          |                          |_|         |  * = assembled USB circuit on Digispark
- *          |                           |          |
- *         ___                         ___        ___
+ *
+ *          + CPU 5V                                   - * Schottky-diode
+ *          o------------------------------------o-----|<|--o-- USB 5V
+ *          |                                    |    -     |
+ *          _                                    o /        | <- Modification to save power and
+ *         | |                      Push button   /=|       | to be compatible with 20x amplification
+ *    470k | |      10k to enable USB            /          |
+ *         |_|         programming               o          |
+ *     1n   |   ____       ___                   |          |
+ *  >---||--o--|____|--o--|___|---PB4 TONE       _          _
+ *   500Hz  |   3k3    |   10k    550 mV        | |        | |
+ *   High   _          |          DC level  47k | |        | | * 1k5 pullup
+ *   Pass  | |        ---                       |_|        |_|
+ *    100k | |        --- 10n   optional         |          |
+ *         |_|         |     2kHz Low pass       |          |
+ *          |          |                         |    ____  |
+ *          o----------o            BUTTON PB3---o---|____|-o
+ *          |                                    |  * 68/22 |
+ *          |                                    _         __
+ *          |                                   | |        /\` * 3V6 Z-diode
+ *          |                              100k | |        --
+ *          |                                   |_|         |  * = assembled USB circuit on Digispark
+ *          |                                    |          |
+ *         ___                                  ___        ___
  *
  *
  *
- * External circuit for 20x amplification configuration on a Digispark board.
+ * External circuit for 20x amplification configuration on PB3 and PB4 for a Digispark board.
+ * Input DC level is 44 mV on PB4 / positive input and 22 mV on PB3 / negative input,
+ * which is for 1.1 V volt output after 20x amplification.
+ * If button is pressed, ADC gives 0.
+ *
  *
  *                                  + CPU 5V         - * Schottky-diode
  *                                      o----- o-----|<|--o-- USB 5V
  *                                      |      |    -     | <-- Modification for 20x amplification
  *                                      _      o /        |
  *                                     | |      /=|  Push | button
- *                                  1M | |     /          |
- *                                     |_|     o          |
+ *        10k to enable USB         1M | |     /          |
+ *           programming               |_|     o          |
  *              ____             ____   |      |          |
- * >--||-o-||--|____|--O PB4 O--|____|--o      _          _
- *   10n | 10n  10k        44 mV 100k   |     | |        | |
- *       |                DC level      _  1k | |        | | * 1k5 pullup
+ * >--||-o-||--|____|----PB4----|____|--o      _          _
+ *   10n | 10n  10k      44 mV   100k   |     | |        | |
+ *       |               DC level       _  1k | |        | | * 1k5 pullup
  *       | High pass                   | |    |_|        |_|
  *       | 800 Hz                  5k6 | |     |          |
  *       |                             |_|     |          |
  *       |                              |      |    ____  |
- *       _               PB3 O----------o------o---|____|-o
- *      | |                     22 mV   |         * 68/22 |
+ *       _       Negative ref PB3-------o------o---|____|-o
+ *      | |       and BUTTON  22 mV     |         * 68/22 |
  *  22k | |                   DC level  _                __
  *      |_|                            | |               /\` * 3V6 Z-diode
  *       |                         4k7 | |               --
@@ -325,7 +330,7 @@ uint16_t predefinedRangesEnd[] = { 2050, 1680, 1480, 1280, 1130, 990, 1900, 1530
 
 #define ADC_REFERENCE   INTERNAL  // 1V1
 #  if defined(USE_ATTINY85_20X_AMPLIFICATION)
-#define ADC_CHANNEL     7           // Differential input (ADC2/PB4 - ADC3/PB3(Button)) * 20
+#define ADC_CHANNEL     7           // Differential input (ADC2/PB4/positive- ADC3/PB3/negative(Button)) * 20
 #  else
 // x1 amplification here
 #define ADC_CHANNEL     2           // Channel ADC2 / PB4 - Signal is clamped by 3V3 zener diode but should anyway stay below 1.1V :-)

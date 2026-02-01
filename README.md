@@ -8,7 +8,7 @@ Only tested on ATtiny85 and ATmega328P.
 
 [![Badge License: GPLv3](https://img.shields.io/badge/License-GPLv3-brightgreen.svg)](https://www.gnu.org/licenses/gpl-3.0)
  &nbsp; &nbsp; 
-[![Badge Version](https://img.shields.io/github/v/release/ArminJo/Arduino-FrequencyDetector?include_prereleases&color=yellow&logo=DocuSign&logoColor=white)](https://github.com/ArminJo/Arduino-FrequencyDetector/releases/latest)
+[![Badge Version](https://img.shields.io/github/v/release/ArminJo/Arduino-FrequencyDetector?color=yellow&logo=DocuSign&logoColor=white)](https://github.com/ArminJo/Arduino-FrequencyDetector/releases/latest)
  &nbsp; &nbsp; 
 [![Badge Commits since latest](https://img.shields.io/github/commits-since/ArminJo/Arduino-FrequencyDetector/latest?color=yellow)](https://github.com/ArminJo/Arduino-FrequencyDetector/commits/master)
  &nbsp; &nbsp; 
